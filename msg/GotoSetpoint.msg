@@ -1,7 +1,7 @@
-# Position and heading setpoints and translational and heading rate constraints
-# Input to position and heading smoothers
+# Position and (optional) heading setpoints with corresponding speed constraints
+# Setpoints are intended as inputs to position and heading smoothers, respectively
 # Setpoints do not need to be kinematically consistent
-# Optional inputs may be specified as controlled by the respective flags
+# Optional heading setpoints may be specified as controlled by the respective flag
 # Unset optional setpoints are not controlled
 # Unset optional constraints default to vehicle specifications
 

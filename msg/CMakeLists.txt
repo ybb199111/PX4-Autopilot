@@ -103,6 +103,7 @@ set(msg_files
 	GimbalManagerSetAttitude.msg
 	GimbalManagerSetManualControl.msg
 	GimbalManagerStatus.msg
+	GotoSetpoint.msg
 	GpioConfig.msg
 	GpioIn.msg
 	GpioOut.msg
@@ -124,7 +125,6 @@ set(msg_files
 	LandingTargetPose.msg
 	LaunchDetectionStatus.msg
 	LedControl.msg
-	PositionHeadingSetpoint.msg
 	LoggerStatus.msg
 	LogMessage.msg
 	MagnetometerBiasEstimate.msg

@@ -372,20 +372,20 @@ void MulticopterPositionControl::Run()
 
 		_trajectory_setpoint_sub.update(&_setpoint);
 
-		const bool last_flag_control_heading = _position_heading_setpoint.flag_control_heading;
-		const hrt_abstime last_position_heading_timestamp = _position_heading_setpoint.timestamp;
-		_position_heading_setpoint_sub.update(&_position_heading_setpoint);
+		const bool last_flag_control_heading = _goto_setpoint.flag_control_heading;
+		const hrt_abstime last_goto_timestamp = _goto_setpoint.timestamp;
+		_goto_setpoint_sub.update(&_goto_setpoint);
 
-		if ((_position_heading_setpoint.timestamp != 0)
-		    && (_position_heading_setpoint.timestamp >= _time_position_control_enabled)
-		    && (hrt_elapsed_time(&last_position_heading_timestamp) < 200_ms)
+		if ((_goto_setpoint.timestamp != 0)
+		    && (_goto_setpoint.timestamp >= _time_position_control_enabled)
+		    && (hrt_elapsed_time(&last_goto_timestamp) < 200_ms)
 		    && _vehicle_control_mode.flag_multicopter_position_control_enabled) {
 			// take position heading setpoint as priority over trajectory setpoint
-			// TODO: move all this into a method and/or class
+			// TODO: move all this into a class
 
 			_setpoint = PositionControl::empty_trajectory_setpoint;
 
-			const Vector3f position_setpoint(_position_heading_setpoint.position);
+			const Vector3f position_setpoint(_goto_setpoint.position);
 
 			if (states.position.isAllFinite() && position_setpoint.isAllFinite()) {
 
@@ -398,7 +398,7 @@ void MulticopterPositionControl::Run()
 					_position_smoother.reset(initial_acceleration, initial_velocity, states.position);
 				}
 
-				setPositionSmootherLimits(_position_heading_setpoint);
+				setPositionSmootherLimits(_goto_setpoint);
 
 				const Vector3f feedforward_velocity{};
 				const bool force_zero_velocity_setpoint = false;
@@ -414,7 +414,7 @@ void MulticopterPositionControl::Run()
 				_setpoint.yaw = NAN;
 				_setpoint.yawspeed = NAN;
 
-				if (_position_heading_setpoint.flag_control_heading && PX4_ISFINITE(_position_heading_setpoint.heading)
+				if (_goto_setpoint.flag_control_heading && PX4_ISFINITE(_goto_setpoint.heading)
 				    && PX4_ISFINITE(states.yaw)) {
 
 					if (_last_active_setpoint_interface == SetpointInterface::kTrajectory || !last_flag_control_heading) {
@@ -422,16 +422,16 @@ void MulticopterPositionControl::Run()
 						_heading_smoother.reset(states.yaw, initial_heading_rate);
 					}
 
-					setHeadingSmootherLimits(_position_heading_setpoint);
-					_heading_smoother.update(_position_heading_setpoint.heading, dt);
+					setHeadingSmootherLimits(_goto_setpoint);
+					_heading_smoother.update(_goto_setpoint.heading, dt);
 
 					_setpoint.yaw = _heading_smoother.getSmoothedHeading();
 					_setpoint.yawspeed = _heading_smoother.getSmoothedHeadingRate();
 				}
 
-				_setpoint.timestamp = _position_heading_setpoint.timestamp;
+				_setpoint.timestamp = _goto_setpoint.timestamp;
 
-				_last_active_setpoint_interface = SetpointInterface::kLocalPositionHeading;
+				_last_active_setpoint_interface = SetpointInterface::kGoto;
 			}
 
 			// for logging
@@ -707,16 +707,15 @@ void MulticopterPositionControl::adjustSetpointForEKFResets(const vehicle_local_
 	_heading_reset_counter = vehicle_local_position.heading_reset_counter;
 }
 
-void MulticopterPositionControl::setPositionSmootherLimits(const position_heading_setpoint_s
-		&position_heading_setpoint)
+void MulticopterPositionControl::setPositionSmootherLimits(const goto_setpoint_s &goto_setpoint)
 {
 	// constrain horizontal velocity
 	float max_horizontal_speed = _param_mpc_xy_cruise.get();
 	float max_horizontal_accel = _param_mpc_acc_hor.get();
 
-	if (position_heading_setpoint.flag_set_max_horizontal_speed
-	    && PX4_ISFINITE(position_heading_setpoint.max_horizontal_speed)) {
-		max_horizontal_speed = math::constrain(position_heading_setpoint.max_horizontal_speed, 0.f, _param_mpc_xy_cruise.get());
+	if (goto_setpoint.flag_set_max_horizontal_speed
+	    && PX4_ISFINITE(goto_setpoint.max_horizontal_speed)) {
+		max_horizontal_speed = math::constrain(goto_setpoint.max_horizontal_speed, 0.f, _param_mpc_xy_cruise.get());
 
 		// linearly scale horizontal acceleration limit with horizontal speed limit to maintain smoothing dynamic
 		// only limit acceleration once within velocity constraints
@@ -732,7 +731,7 @@ void MulticopterPositionControl::setPositionSmootherLimits(const position_headin
 	_position_smoother.setMaxAccelerationXY(max_horizontal_accel);
 
 	// constrain vertical velocity
-	const bool pos_setpoint_is_below_smooth_pos = position_heading_setpoint.position[2] -
+	const bool pos_setpoint_is_below_smooth_pos = goto_setpoint.position[2] -
 			_position_smoother.getCurrentPositionZ() > 0.f;
 	const float vehicle_max_vertical_speed = (pos_setpoint_is_below_smooth_pos) ? _param_mpc_z_v_auto_dn.get() :
 			_param_mpc_z_v_auto_up.get();
@@ -742,10 +741,9 @@ void MulticopterPositionControl::setPositionSmootherLimits(const position_headin
 	float max_vertical_speed = vehicle_max_vertical_speed;
 	float max_vertical_accel = vehicle_max_vertical_accel;
 
-	if (position_heading_setpoint.flag_set_max_vertical_speed
-	    && PX4_ISFINITE(position_heading_setpoint.max_vertical_speed)) {
+	if (goto_setpoint.flag_set_max_vertical_speed && PX4_ISFINITE(goto_setpoint.max_vertical_speed)) {
 
-		max_vertical_speed = math::constrain(position_heading_setpoint.max_vertical_speed, 0.f, vehicle_max_vertical_speed);
+		max_vertical_speed = math::constrain(goto_setpoint.max_vertical_speed, 0.f, vehicle_max_vertical_speed);
 
 		// linearly scale vertical acceleration limit with vertical speed limit to maintain smoothing dynamic
 		// only limit acceleration once within velocity constraints
@@ -765,14 +763,13 @@ void MulticopterPositionControl::setPositionSmootherLimits(const position_headin
 	_position_smoother.setMaxAllowedHorizontalError(_param_mpc_xy_err_max.get());
 }
 
-void MulticopterPositionControl::setHeadingSmootherLimits(const position_heading_setpoint_s
-		&position_heading_setpoint)
+void MulticopterPositionControl::setHeadingSmootherLimits(const goto_setpoint_s &goto_setpoint)
 {
 	float max_heading_rate =  _param_mpc_yawrauto_max.get();
 	float max_heading_accel = _param_mpc_yawaauto_max.get();
 
-	if (position_heading_setpoint.flag_set_max_heading_rate && PX4_ISFINITE(position_heading_setpoint.max_heading_rate)) {
-		max_heading_rate = math::constrain(position_heading_setpoint.max_heading_rate, HeadingSmoother::kMinHeadingRate,
+	if (goto_setpoint.flag_set_max_heading_rate && PX4_ISFINITE(goto_setpoint.max_heading_rate)) {
+		max_heading_rate = math::constrain(goto_setpoint.max_heading_rate, HeadingSmoother::kMinHeadingRate,
 						   _param_mpc_yawrauto_max.get());
 
 		// linearly scale heading acceleration limit with heading rate limit to maintain smoothing dynamic

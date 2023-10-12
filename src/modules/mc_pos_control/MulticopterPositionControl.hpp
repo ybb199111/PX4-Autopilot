@@ -59,7 +59,7 @@
 #include <uORB/SubscriptionCallback.hpp>
 #include <uORB/topics/hover_thrust_estimate.h>
 #include <uORB/topics/parameter_update.h>
-#include <uORB/topics/position_heading_setpoint.h>
+#include <uORB/topics/goto_setpoint.h>
 #include <uORB/topics/trajectory_setpoint.h>
 #include <uORB/topics/vehicle_attitude_setpoint.h>
 #include <uORB/topics/vehicle_constraints.h>
@@ -105,7 +105,7 @@ private:
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
 	uORB::Subscription _hover_thrust_estimate_sub{ORB_ID(hover_thrust_estimate)};
-	uORB::Subscription _position_heading_setpoint_sub{ORB_ID(position_heading_setpoint)};
+	uORB::Subscription _goto_setpoint_sub{ORB_ID(goto_setpoint)};
 	uORB::Subscription _trajectory_setpoint_sub{ORB_ID(trajectory_setpoint)};
 	uORB::Subscription _vehicle_constraints_sub{ORB_ID(vehicle_constraints)};
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
@@ -114,7 +114,7 @@ private:
 	hrt_abstime _time_stamp_last_loop{0};		/**< time stamp of last loop iteration */
 	hrt_abstime _time_position_control_enabled{0};
 
-	position_heading_setpoint_s _position_heading_setpoint{};
+	goto_setpoint_s _goto_setpoint{};
 	trajectory_setpoint_s _setpoint{PositionControl::empty_trajectory_setpoint};
 	vehicle_control_mode_s _vehicle_control_mode{};
 
@@ -135,7 +135,7 @@ private:
 
 	enum SetpointInterface {
 		kTrajectory = 0,
-		kLocalPositionHeading
+		kGoto
 	} _last_active_setpoint_interface{kTrajectory};
 
 	PositionSmoothing _position_smoother;
@@ -246,14 +246,12 @@ private:
 	/**
 	 * @brief adjust existing (or older) setpoint with any EKF reset deltas and update the local counters
 	 *
-	 * TODO: better name??
-	 *
 	 * @param[in] vehicle_local_position struct containing EKF reset deltas and counters
 	 * @param[out] setpoint trajectory setpoint struct to be adjusted
 	 */
 	void adjustSetpointForEKFResets(const vehicle_local_position_s &vehicle_local_position,
 					trajectory_setpoint_s &setpoint);
 
-	void setPositionSmootherLimits(const position_heading_setpoint_s &position_heading_setpoint);
-	void setHeadingSmootherLimits(const position_heading_setpoint_s &position_heading_setpoint);
+	void setPositionSmootherLimits(const goto_setpoint_s &goto_setpoint);
+	void setHeadingSmootherLimits(const goto_setpoint_s &goto_setpoint);
 };
