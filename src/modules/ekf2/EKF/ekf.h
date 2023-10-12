@@ -433,14 +433,7 @@ public:
 	const Vector3f &getMagEarthField() const { return _state.mag_I; }
 
 	const Vector3f &getMagBias() const { return _state.mag_B; }
-	Vector3f getMagBiasVariance() const
-	{
-		if (_control_status.flags.mag) {
-			return getStateVariance<State::mag_B>();
-		}
-
-		return _saved_mag_bf_covmat.diag();
-	}
+	Vector3f getMagBiasVariance() const { return getStateVariance<State::mag_B>(); } // get the mag bias variance in Gauss
 	float getMagBiasLimit() const { return 0.5f; } // 0.5 Gauss
 #endif // CONFIG_EKF2_MAGNETOMETER
 
@@ -781,8 +774,6 @@ private:
 	uint64_t _flt_mag_align_start_time{0};	///< time that inflight magnetic field alignment started (uSec)
 	uint64_t _time_last_mov_3d_mag_suitable{0};	///< last system time that sufficient movement to use 3-axis magnetometer fusion was detected (uSec)
 	uint64_t _time_last_mag_check_failing{0};
-	Matrix3f _saved_mag_ef_covmat{}; ///< NED magnetic field state covariance sub-matrix saved for use at the next initialisation (Gauss**2)
-	Matrix3f _saved_mag_bf_covmat{}; ///< magnetic field state covariance sub-matrix that has been saved for use at the next initialisation (Gauss**2)
 #endif // CONFIG_EKF2_MAGNETOMETER
 
 	gps_check_fail_status_u _gps_check_fail_status{};
@@ -793,9 +784,6 @@ private:
 	Vector3f _accel_vec_filt{};		///< acceleration vector after application of a low pass filter (m/sec**2)
 	float _accel_magnitude_filt{0.0f};	///< acceleration magnitude after application of a decaying envelope filter (rad/sec)
 	float _ang_rate_magnitude_filt{0.0f};		///< angular rate magnitude after application of a decaying envelope filter (rad/sec)
-
-	Vector3f _prev_gyro_bias_var{};         ///< saved gyro XYZ bias variances
-	Vector3f _prev_accel_bias_var{};        ///< saved accel XYZ bias variances
 
 	// height sensor status
 	bool _gps_intermittent{true};           ///< true if data into the buffer is intermittent
@@ -1128,10 +1116,6 @@ private:
 
 	void stopMagHdgFusion();
 	void stopMagFusion();
-
-	// load and save mag field state covariance data for re-use
-	void loadMagCovData();
-	void saveMagCovData();
 
 	// calculate a synthetic value for the magnetometer Z component, given the 3D magnetomter
 	// sensor measurement

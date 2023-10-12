@@ -159,8 +159,6 @@ void Ekf::controlMag3DFusion(const magSample &mag_sample, const bool common_star
 
 			_control_status.flags.mag = true;
 
-			loadMagCovData();
-
 			// activate fusion, reset mag states and initialize variance if first init or in flight reset
 			if (!_control_status.flags.yaw_align
 			    || wmm_updated
@@ -209,25 +207,5 @@ void Ekf::stopMagFusion()
 		_fault_status.flags.bad_mag_z = false;
 
 		_fault_status.flags.bad_mag_decl = false;
-
-		saveMagCovData();
 	}
-}
-
-void Ekf::saveMagCovData()
-{
-	// save the NED axis covariance sub-matrix
-	_saved_mag_ef_covmat = getStateCovariance<State::mag_I>();
-
-	// save the XYZ body covariance sub-matrix
-	_saved_mag_bf_covmat = getStateCovariance<State::mag_B>();
-}
-
-void Ekf::loadMagCovData()
-{
-	// re-instate the NED axis covariance sub-matrix
-	resetStateCovariance<State::mag_I>(_saved_mag_ef_covmat);
-
-	// re-instate the XYZ body axis covariance sub-matrix
-	resetStateCovariance<State::mag_B>(_saved_mag_bf_covmat);
 }

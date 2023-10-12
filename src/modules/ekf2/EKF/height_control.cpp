@@ -156,11 +156,18 @@ void Ekf::checkVerticalAccelerationHealth(const imuSample &imu_delayed)
 
 	// declare a bad vertical acceleration measurement and make the declaration persist
 	// for a minimum of BADACC_PROBATION seconds
+	const bool bad_acc_vertical_prev = _fault_status.flags.bad_acc_vertical;
 	if (_fault_status.flags.bad_acc_vertical) {
 		_fault_status.flags.bad_acc_vertical = isRecent(_time_bad_vert_accel, BADACC_PROBATION);
 
 	} else {
 		_fault_status.flags.bad_acc_vertical = bad_vert_accel;
+	}
+
+	if (_fault_status.flags.bad_acc_vertical && !bad_acc_vertical_prev) {
+		ECL_WARN("bad acc vertical");
+	} else if (bad_acc_vertical_prev && !_fault_status.flags.bad_acc_vertical) {
+		ECL_INFO("acc vertical no longer bad");
 	}
 }
 

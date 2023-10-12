@@ -137,7 +137,7 @@ void Ekf::controlGnssHeightFusion(const gpsSample &gps_sample)
 		} else {
 			if (starting_conditions_passing) {
 				if (_params.height_sensor_ref == HeightSensor::GNSS) {
-					ECL_INFO("starting %s height fusion, resetting height", HGT_SRC_NAME);
+					ECL_INFO("starting %s height fusion, resetting Z=%.3f", HGT_SRC_NAME, (double)-measurement);
 					_height_sensor_ref = HeightSensor::GNSS;
 
 					_information_events.flags.reset_hgt_to_gps = true;

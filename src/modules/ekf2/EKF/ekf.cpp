@@ -89,9 +89,6 @@ void Ekf::reset()
 	_fault_status.value = 0;
 	_innov_check_fail_status.value = 0;
 
-	_prev_gyro_bias_var.zero();
-	_prev_accel_bias_var.zero();
-
 	resetGpsDriftCheckFilters();
 
 	_output_predictor.reset();

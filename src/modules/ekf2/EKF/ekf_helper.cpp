@@ -612,9 +612,6 @@ void Ekf::resetGyroBias()
 	// Zero the corresponding covariances and set
 	// variances to the values use for initial alignment
 	P.uncorrelateCovarianceSetVariance<State::gyro_bias.dof>(State::gyro_bias.idx, sq(_params.switch_on_gyro_bias));
-
-	// Set previous frame values
-	_prev_gyro_bias_var = getStateVariance<State::gyro_bias>();
 }
 
 void Ekf::resetAccelBias()
@@ -625,9 +622,6 @@ void Ekf::resetAccelBias()
 	// Zero the corresponding covariances and set
 	// variances to the values use for initial alignment
 	P.uncorrelateCovarianceSetVariance<State::accel_bias.dof>(State::accel_bias.idx, sq(_params.switch_on_accel_bias));
-
-	// Set previous frame values
-	_prev_accel_bias_var = getStateVariance<State::accel_bias>();
 }
 
 // get EKF innovation consistency check status information comprising of:

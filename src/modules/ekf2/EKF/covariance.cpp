@@ -79,12 +79,10 @@ void Ekf::initialiseCovariance()
 	// gyro bias
 	const float gyro_bias_var = sq(_params.switch_on_gyro_bias);
 	P.uncorrelateCovarianceSetVariance<State::gyro_bias.dof>(State::gyro_bias.idx, gyro_bias_var);
-	_prev_gyro_bias_var.setAll(gyro_bias_var);
 
 	// accel bias
 	const float accel_bias_var = sq(_params.switch_on_accel_bias);
 	P.uncorrelateCovarianceSetVariance<State::accel_bias.dof>(State::accel_bias.idx, accel_bias_var);
-	_prev_accel_bias_var.setAll(accel_bias_var);
 
 #if defined(CONFIG_EKF2_MAGNETOMETER)
 	resetMagCov();
@@ -113,41 +111,31 @@ void Ekf::predictCovariance(const imuSample &imu_delayed)
 					     || _accel_magnitude_filt > _params.acc_bias_learn_acc_lim;
 
 	// gyro bias inhibit
-	const bool do_inhibit_all_gyro_axes = !(_params.imu_ctrl & static_cast<int32_t>(ImuCtrl::GyroBias));
+	const bool gyro_bias_inhibit_prev[3] {_gyro_bias_inhibit[0], _gyro_bias_inhibit[1], _gyro_bias_inhibit[2]};
+	const bool do_inhibit_all_gyro_axes = !(_params.imu_ctrl & static_cast<int32_t>(ImuCtrl::GyroBias))
+					 || is_manoeuvre_level_high;
 
 	for (unsigned index = 0; index < State::gyro_bias.dof; index++) {
-		const unsigned stateIndex = State::gyro_bias.idx + index;
-
-		bool is_bias_observable = true;
-
 		// TODO: gyro bias conditions
+		bool is_bias_observable = true;
+		_gyro_bias_inhibit[index] = do_inhibit_all_gyro_axes || !is_bias_observable;
+	}
 
-		const bool do_inhibit_axis = do_inhibit_all_gyro_axes || !is_bias_observable;
-
-		if (do_inhibit_axis) {
-			// store the bias state variances to be reinstated later
-			if (!_gyro_bias_inhibit[index]) {
-				_prev_gyro_bias_var(index) = P(stateIndex, stateIndex);
-				_gyro_bias_inhibit[index] = true;
-			}
-
-		} else {
-			if (_gyro_bias_inhibit[index]) {
-				// reinstate the bias state variances
-				P(stateIndex, stateIndex) = _prev_gyro_bias_var(index);
-				_gyro_bias_inhibit[index] = false;
-			}
-		}
+	if ((gyro_bias_inhibit_prev[0] != _gyro_bias_inhibit[0]) || (gyro_bias_inhibit_prev[1] != _gyro_bias_inhibit[1]) || (gyro_bias_inhibit_prev[2] != _gyro_bias_inhibit[2])) {
+		ECL_INFO("gyro bias inhibit changed [%d,%d,%d]->[%d,%d,%d]",
+			gyro_bias_inhibit_prev[0], gyro_bias_inhibit_prev[1], gyro_bias_inhibit_prev[2],
+			_gyro_bias_inhibit[0], _gyro_bias_inhibit[1], _gyro_bias_inhibit[2]);
 	}
 
 	// accel bias inhibit
+	const bool accel_bias_inhibit_prev[3] {_accel_bias_inhibit[0], _accel_bias_inhibit[1], _accel_bias_inhibit[2]};
+
 	const bool do_inhibit_all_accel_axes = !(_params.imu_ctrl & static_cast<int32_t>(ImuCtrl::AccelBias))
 					 || is_manoeuvre_level_high
 					 || _fault_status.flags.bad_acc_vertical;
 
-	for (unsigned index = 0; index < State::accel_bias.dof; index++) {
-		const unsigned stateIndex = State::accel_bias.idx + index;
 
+	for (unsigned index = 0; index < State::accel_bias.dof; index++) {
 		bool is_bias_observable = true;
 
 		if (_control_status.flags.vehicle_at_rest) {
@@ -161,22 +149,19 @@ void Ekf::predictCovariance(const imuSample &imu_delayed)
 			is_bias_observable = (fabsf(_R_to_earth(2, index)) > 0.966f); // cos 15 degrees ~= 0.966
 		}
 
-		const bool do_inhibit_axis = do_inhibit_all_accel_axes || imu_delayed.delta_vel_clipping[index] || !is_bias_observable;
-
-		if (do_inhibit_axis) {
-			// store the bias state variances to be reinstated later
-			if (!_accel_bias_inhibit[index]) {
-				_prev_accel_bias_var(index) = P(stateIndex, stateIndex);
-				_accel_bias_inhibit[index] = true;
-			}
+		if (do_inhibit_all_accel_axes || imu_delayed.delta_vel_clipping[index] || !is_bias_observable) {
+			// accel bias inhibited
+			_accel_bias_inhibit[index] = true;
 
 		} else {
-			if (_accel_bias_inhibit[index]) {
-				// reinstate the bias state variances
-				P(stateIndex, stateIndex) = _prev_accel_bias_var(index);
-				_accel_bias_inhibit[index] = false;
-			}
+			_accel_bias_inhibit[index] = false;
 		}
+	}
+
+	if ((accel_bias_inhibit_prev[0] != _accel_bias_inhibit[0]) || (accel_bias_inhibit_prev[1] != _accel_bias_inhibit[1]) || (accel_bias_inhibit_prev[2] != _accel_bias_inhibit[2])) {
+		ECL_INFO("accel bias inhibit changed [%d,%d,%d]->[%d,%d,%d]",
+			accel_bias_inhibit_prev[0], accel_bias_inhibit_prev[1], accel_bias_inhibit_prev[2],
+			_accel_bias_inhibit[0], _accel_bias_inhibit[1], _accel_bias_inhibit[2]);
 	}
 
 	// assign IMU noise variances
@@ -207,7 +192,7 @@ void Ekf::predictCovariance(const imuSample &imu_delayed)
 	// Construct the process noise variance diagonal for those states with a stationary process model
 	// These are kinematic states and their error growth is controlled separately by the IMU noise variances
 
-	// gyro bias: add process noise, or restore previous gyro bias var if state inhibited
+	// gyro bias: add process noise unless state is inhibited
 	const float gyro_bias_sig = dt * math::constrain(_params.gyro_bias_p_noise, 0.f, 1.f);
 	const float gyro_bias_process_noise = sq(gyro_bias_sig);
 	for (unsigned index = 0; index < State::gyro_bias.dof; index++) {
@@ -215,13 +200,10 @@ void Ekf::predictCovariance(const imuSample &imu_delayed)
 
 		if (!_gyro_bias_inhibit[index]) {
 			P(i, i) += gyro_bias_process_noise;
-
-		} else {
-			P.uncorrelateCovarianceSetVariance<1>(i, _prev_gyro_bias_var(index));
 		}
 	}
 
-	// accel bias: add process noise, or restore previous accel bias var if state inhibited
+	// accel bias: add process noise unless state is inhibited
 	const float accel_bias_sig = dt * math::constrain(_params.accel_bias_p_noise, 0.f, 1.f);
 	const float accel_bias_process_noise = sq(accel_bias_sig);
 	for (unsigned index = 0; index < State::accel_bias.dof; index++) {
@@ -229,60 +211,33 @@ void Ekf::predictCovariance(const imuSample &imu_delayed)
 
 		if (!_accel_bias_inhibit[index]) {
 			P(i, i) += accel_bias_process_noise;
-
-		} else {
-			P.uncorrelateCovarianceSetVariance<1>(i, _prev_accel_bias_var(index));
 		}
 	}
 
 #if defined(CONFIG_EKF2_MAGNETOMETER)
 	if (_control_status.flags.mag) {
-		// Don't continue to grow the earth field variances if they are becoming too large or we are not doing 3-axis fusion as this can make the covariance matrix badly conditioned
-		if (P.trace<State::mag_I.dof>(State::mag_I.idx) < 0.1f) {
+		// mag_I: add process noise
+		float mag_I_sig = dt * math::constrain(_params.mage_p_noise, 0.f, 1.f);
+		P.slice<State::mag_I.dof, 1>(State::mag_I.idx, 0) += sq(mag_I_sig);
 
-			float mag_I_sig = dt * math::constrain(_params.mage_p_noise, 0.f, 1.f);
-			float mag_I_process_noise = sq(mag_I_sig);
-
-			for (unsigned index = 0; index < State::mag_I.dof; index++) {
-				unsigned i = State::mag_I.idx + index;
-				P(i, i) += mag_I_process_noise;
-			}
-		}
-
-		// Don't continue to grow the body field variances if they are becoming too large or we are not doing 3-axis fusion as this can make the covariance matrix badly conditioned
-		if (P.trace<State::mag_B.dof>(State::mag_B.idx) < 0.1f) {
-
-			float mag_B_sig = dt * math::constrain(_params.magb_p_noise, 0.f, 1.f);
-			float mag_B_process_noise = sq(mag_B_sig);
-
-			for (unsigned index = 0; index < State::mag_B.dof; index++) {
-				unsigned i = State::mag_B.idx + index;
-				P(i, i) += mag_B_process_noise;
-			}
-		}
+		// mag_B: add process noise
+		float mag_B_sig = dt * math::constrain(_params.magb_p_noise, 0.f, 1.f);
+		P.slice<State::mag_B.dof, 1>(State::mag_B.idx, 0) += sq(mag_B_sig);
 	}
 #endif // CONFIG_EKF2_MAGNETOMETER
 
 #if defined(CONFIG_EKF2_WIND)
-	if (_control_status.flags.wind) {
-		// Don't continue to grow wind velocity state variances if they are becoming too large or we are not using wind velocity states as this can make the covariance matrix badly conditioned
-		if (P.trace<State::wind_vel.dof>(State::wind_vel.idx) < sq(_params.initial_wind_uncertainty)) {
-
-			float wind_vel_nsd_scaled = math::constrain(_params.wind_vel_nsd, 0.f, 1.f) * (1.f + _params.wind_vel_nsd_scaler * fabsf(_height_rate_lpf));
-
-			const float wind_vel_process_noise = sq(wind_vel_nsd_scaled) * dt;
-
-			for (unsigned index = 0; index < State::wind_vel.dof; index++) {
-				unsigned i = State::wind_vel.idx + index;
-				P(i, i) += wind_vel_process_noise;
-			}
-		}
+	if (_control_status.flags.wind && (P.trace<State::wind_vel.dof>(State::wind_vel.idx) < sq(_params.initial_wind_uncertainty))) {
+		// wind vel: add process noise
+		//  Don't continue to grow wind velocity state variances if they are becoming too large or we are not using wind velocity states as this can make the covariance matrix badly conditioned
+		float wind_vel_nsd_scaled = math::constrain(_params.wind_vel_nsd, 0.f, 1.f) * (1.f + _params.wind_vel_nsd_scaler * fabsf(_height_rate_lpf));
+		P.slice<State::wind_vel.dof, 1>(State::wind_vel.idx, 0) += sq(wind_vel_nsd_scaled) * dt;
 	}
 #endif // CONFIG_EKF2_WIND
 
 	// covariance matrix is symmetrical, so copy upper half to lower half
 	for (unsigned row = 0; row < State::size; row++) {
-		for (unsigned column = 0 ; column < row; column++) {
+		for (unsigned column = 0; column < row; column++) {
 			P(row, column) = P(column, row);
 		}
 	}
@@ -299,72 +254,22 @@ void Ekf::fixCovarianceErrors(bool force_symmetry)
 	// and set corresponding entries in Q to zero when states exceed 50% of the limit
 	// Covariance diagonal limits. Use same values for states which
 	// belong to the same group (e.g. vel_x, vel_y, vel_z)
-	const float quat_var_max = 1.0f;
-	const float vel_var_max = 1e6f;
-	const float pos_var_max = 1e6f;
-	const float gyro_bias_var_max = 1.0f;
 
-	constrainStateVar(State::quat_nominal, 0.f, quat_var_max);
-	constrainStateVar(State::vel, 1e-6f, vel_var_max);
-	constrainStateVar(State::pos, 1e-6f, pos_var_max);
-	constrainStateVar(State::gyro_bias, 0.f, gyro_bias_var_max);
+	constrainStateVar(State::quat_nominal, 1e-8f, 1.f);
+	constrainStateVar(State::vel, 1e-6f, 1e6f);
+	constrainStateVar(State::pos, 1e-6f, 1e6f);
 
-	// force symmetry on the quaternion, velocity and position state covariances
-	if (force_symmetry) {
-		P.makeRowColSymmetric<State::quat_nominal.dof>(State::quat_nominal.idx);
-		P.makeRowColSymmetric<State::vel.dof>(State::vel.idx);
-		P.makeRowColSymmetric<State::pos.dof>(State::pos.idx);
-		P.makeRowColSymmetric<State::gyro_bias.dof>(State::gyro_bias.idx); //TODO: needed?
-	}
+	// gyro_bias: the ratio of a max and min variance must not exceed 100
+	const float gyro_bias_var_max = math::constrain(getStateVariance<State::gyro_bias>().max(), 1e-9f, 1.f);
+	const float gyro_bias_var_min = gyro_bias_var_max * 0.01f; // the ratio of a max and min variance must not exceed 100
+	constrainStateVar(State::gyro_bias, gyro_bias_var_min, gyro_bias_var_max);
 
-	// the following states are optional and are deactivated when not required
-	// by ensuring the corresponding covariance matrix values are kept at zero
+	// accel_bias: the ratio of a max and min variance must not exceed 100
+	const float accel_bias_var_max = math::constrain(getStateVariance<State::accel_bias>().max(), 1e-9f, 1.f);
+	const float accel_bias_var_min = accel_bias_var_max * 0.001f; // the ratio of a max and min variance must not exceed 100
+	constrainStateVar(State::accel_bias, accel_bias_var_min, accel_bias_var_max);
 
-	// accelerometer bias states
 	if (!_accel_bias_inhibit[0] || !_accel_bias_inhibit[1] || !_accel_bias_inhibit[2]) {
-		// Find the maximum delta velocity bias state variance and request a covariance reset if any variance is below the safe minimum
-		const float minSafeStateVar = 1e-9f / sq(_dt_ekf_avg);
-		float maxStateVar = minSafeStateVar;
-		bool resetRequired = false;
-
-		for (unsigned axis = 0; axis < State::accel_bias.dof; axis++) {
-			const unsigned stateIndex = State::accel_bias.idx + axis;
-
-			if (_accel_bias_inhibit[axis]) {
-				// Skip the check for the inhibited axis
-				continue;
-			}
-
-			if (P(stateIndex, stateIndex) > maxStateVar) {
-				maxStateVar = P(stateIndex, stateIndex);
-
-			} else if (P(stateIndex, stateIndex) < minSafeStateVar) {
-				resetRequired = true;
-			}
-		}
-
-		// To ensure stability of the covariance matrix operations, the ratio of a max and min variance must
-		// not exceed 100 and the minimum variance must not fall below the target minimum
-		// Also limit variance to a maximum equivalent to a 0.1g uncertainty
-		const float minStateVarTarget = 5E-8f / sq(_dt_ekf_avg);
-		float minAllowedStateVar = fmaxf(0.01f * maxStateVar, minStateVarTarget);
-
-		for (unsigned axis = 0; axis < State::accel_bias.dof; axis++) {
-			const unsigned stateIndex = State::accel_bias.idx + axis;
-
-			if (_accel_bias_inhibit[axis]) {
-				// Skip the check for the inhibited axis
-				continue;
-			}
-
-			P(stateIndex, stateIndex) = math::constrain(P(stateIndex, stateIndex), minAllowedStateVar, sq(0.1f * CONSTANTS_ONE_G));
-		}
-
-		// If any one axis has fallen below the safe minimum, all delta velocity covariance terms must be reset to zero
-		if (resetRequired) {
-			P.uncorrelateCovariance<State::accel_bias.dof>(State::accel_bias.idx);
-		}
-
 		// Run additional checks to see if the delta velocity bias has hit limits in a direction that is clearly wrong
 		// calculate accel bias term aligned with the gravity vector
 		const float dVel_bias_lim = 0.9f * _params.acc_bias_lim * _dt_ekf_avg;
@@ -427,48 +332,56 @@ void Ekf::fixCovarianceErrors(bool force_symmetry)
 			_fault_status.flags.bad_acc_bias = false;
 			_warning_events.flags.invalid_accel_bias_cov_reset = true;
 			ECL_WARN("invalid accel bias - covariance reset");
-
-		} else if (force_symmetry) {
-			// ensure the covariance values are symmetrical
-			P.makeRowColSymmetric<State::accel_bias.dof>(State::accel_bias.idx);
 		}
-
 	}
 
 #if defined(CONFIG_EKF2_MAGNETOMETER)
-	// magnetic field states
-	if (!_control_status.flags.mag) {
-		P.uncorrelateCovarianceSetVariance<State::mag_I.dof>(State::mag_I.idx, 0.0f);
-		P.uncorrelateCovarianceSetVariance<State::mag_B.dof>(State::mag_B.idx, 0.0f);
+	if (_control_status.flags.mag) {
+		// mag_I: the ratio of a max and min variance must not exceed 100
+		const float mag_I_var_max = math::constrain(getStateVariance<State::mag_I>().max(), 1e-6f, 1.f);
+		const float mag_I_var_min = mag_I_var_max * 0.01f;
+		constrainStateVar(State::mag_I, mag_I_var_min, mag_I_var_max);
+
+		// mag_B: the ratio of a max and min variance must not exceed 100
+		const float mag_B_var_max = math::constrain(getStateVariance<State::mag_B>().max(), 1e-6f, 1.f);
+		const float mag_B_var_min = mag_B_var_max * 0.01f;
+		constrainStateVar(State::mag_B, mag_B_var_min, mag_B_var_max);
 
 	} else {
-		const float mag_I_var_max = 1.f;
-		constrainStateVar(State::mag_I, 0.f, mag_I_var_max);
+		// mag_I: Don't continue to grow the earth field variances if they are becoming too large as this can make the covariance matrix badly conditioned
+		constrainStateVar(State::mag_I, 0.f, 0.1f);
 
-		const float mag_B_var_max = 1.f;
-		constrainStateVar(State::mag_B, 0.f, mag_B_var_max);
+		// mag_B: Don't continue to grow the body field variances if they are becoming too large as this can make the covariance matrix badly conditioned
+		constrainStateVar(State::mag_B, 0.f, 0.1f);
+	}
 
-		if (force_symmetry) {
-			P.makeRowColSymmetric<State::mag_I.dof>(State::mag_I.idx);
-			P.makeRowColSymmetric<State::mag_B.dof>(State::mag_B.idx);
-		}
+	if (force_symmetry) {
+		P.makeRowColSymmetric<State::mag_I.dof>(State::mag_I.idx);
+		P.makeRowColSymmetric<State::mag_B.dof>(State::mag_B.idx);
 	}
 #endif // CONFIG_EKF2_MAGNETOMETER
 
 #if defined(CONFIG_EKF2_WIND)
-	// wind velocity states
+	// wind_vel
 	if (!_control_status.flags.wind) {
-		P.uncorrelateCovarianceSetVariance<State::wind_vel.dof>(State::wind_vel.idx, 0.0f);
+		P.uncorrelateCovarianceSetVariance<State::wind_vel.dof>(State::wind_vel.idx, 0.f);
 
 	} else {
-		const float wind_vel_var_max = 1e6f;
-		constrainStateVar(State::wind_vel, 0.f, wind_vel_var_max);
+		constrainStateVar(State::wind_vel, 0.f, 1e6f);
 
 		if (force_symmetry) {
 			P.makeRowColSymmetric<State::wind_vel.dof>(State::wind_vel.idx);
 		}
 	}
 #endif // CONFIG_EKF2_WIND
+
+	if (force_symmetry) {
+		P.makeRowColSymmetric<State::quat_nominal.dof>(State::quat_nominal.idx);
+		P.makeRowColSymmetric<State::vel.dof>(State::vel.idx);
+		P.makeRowColSymmetric<State::pos.dof>(State::pos.idx);
+		P.makeRowColSymmetric<State::gyro_bias.dof>(State::gyro_bias.idx);
+		P.makeRowColSymmetric<State::accel_bias.dof>(State::accel_bias.idx);
+	}
 }
 
 void Ekf::constrainStateVar(const IdxDof &state, float min, float max)
@@ -526,8 +439,6 @@ void Ekf::resetMagCov()
 
 	P.uncorrelateCovarianceSetVariance<State::mag_I.dof>(State::mag_I.idx, sq(_params.mag_noise));
 	P.uncorrelateCovarianceSetVariance<State::mag_B.dof>(State::mag_B.idx, sq(_params.mag_noise));
-
-	saveMagCovData();
 }
 #endif // CONFIG_EKF2_MAGNETOMETER
 
