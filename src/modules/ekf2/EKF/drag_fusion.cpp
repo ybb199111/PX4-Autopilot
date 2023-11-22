@@ -41,6 +41,7 @@
 #include <ekf_derivation/generated/compute_drag_y_innov_var_and_k.h>
 
 #include <mathlib/mathlib.h>
+#include <lib/atmosphere/atmosphere.h>
 
 void Ekf::controlDragFusion(const imuSample &imu_delayed)
 {
@@ -67,7 +68,7 @@ void Ekf::fuseDrag(const dragSample &drag_sample)
 
 	// correct rotor momentum drag for increase in required rotor mass flow with altitude
 	// obtained from momentum disc theory
-	const float mcoef_corrrected = fmaxf(_params.mcoef * sqrtf(rho / CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C), 0.f);
+	const float mcoef_corrrected = fmaxf(_params.mcoef * sqrtf(rho / atmosphere::kAirDensitySeaLevelStandardAtmos), 0.f);
 
 	// drag model parameters
 	const bool using_bcoef_x = _params.bcoef_x > 1.0f;
@@ -84,7 +85,7 @@ void Ekf::fuseDrag(const dragSample &drag_sample)
 				      _state.vel(2));
 	const Vector3f rel_wind_body = _state.quat_nominal.rotateVectorInverse(rel_wind_earth);
 	const float rel_wind_speed = rel_wind_body.norm();
-	const VectorState state_vector_prev = _state.vector();
+	const auto state_vector_prev = _state.vector();
 
 	Vector2f bcoef_inv{0.f, 0.f};
 
