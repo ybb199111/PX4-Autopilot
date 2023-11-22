@@ -59,7 +59,7 @@
 PARAM_DEFINE_INT32(FW_AT_START, 0);
 
 /**
- * Amplitude of the injected signal
+ * Amplitude of the injected signal（注入信号）
  *
  * This parameter scales the signal sent to the
  * rate controller during system identification.
