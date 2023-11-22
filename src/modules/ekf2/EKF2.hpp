@@ -156,19 +156,6 @@ public:
 	int instance() const { return _instance; }
 
 private:
-	//TODO: remove after 1.14 release
-	enum SensorFusionMask : uint16_t {
-		// Bit locations for fusion_mode
-		DEPRECATED_USE_GPS = (1 << 0),  ///< set to true to use GPS data (DEPRECATED, use gnss_ctrl)
-		DEPRECATED_USE_OPT_FLOW     = (1 << 1), ///< set to true to use optical flow data
-		DEPRECATED_INHIBIT_ACC_BIAS = (1 << 2), ///< set to true to inhibit estimation of accelerometer delta velocity bias
-		DEPRECATED_USE_EXT_VIS_POS = (1 << 3), ///< set to true to use external vision position data
-		DEPRECATED_USE_EXT_VIS_YAW = (1 << 4), ///< set to true to use external vision quaternion data for yaw
-		DEPRECATED_USE_DRAG         = (1 << 5), ///< set to true to use the multi-rotor drag model to estimate wind
-		DEPRECATED_ROTATE_EXT_VIS  = (1 << 6), ///< set to true to if the EV observations are in a non NED reference frame and need to be rotated before being used
-		DEPRECATED_USE_GPS_YAW     = (1 << 7), ///< set to true to use GPS yaw data if available (DEPRECATED, use gnss_ctrl)
-		DEPRECATED_USE_EXT_VIS_VEL = (1 << 8), ///< set to true to use external vision velocity data
-	};
 
 	static constexpr uint8_t MAX_NUM_IMUS = 4;
 	static constexpr uint8_t MAX_NUM_MAGS = 4;
@@ -377,6 +364,7 @@ private:
 
 	uORB::PublicationMulti<estimator_aid_source2d_s> _estimator_aid_src_optical_flow_pub{ORB_ID(estimator_aid_src_optical_flow)};
 	hrt_abstime _status_optical_flow_pub_last{0};
+	hrt_abstime _optical_flow_vel_pub_last{0};
 
 	perf_counter_t _msg_missed_optical_flow_perf{nullptr};
 #endif // CONFIG_EKF2_OPTICAL_FLOW
@@ -641,9 +629,6 @@ private:
 		(ParamExtInt<px4::params::EKF2_SYNT_MAG_Z>) _param_ekf2_synthetic_mag_z,
 #endif // CONFIG_EKF2_MAGNETOMETER
 
-		// measurement source control
-		(ParamInt<px4::params::EKF2_AID_MASK>)
-		_param_ekf2_aid_mask,		///< bitmasked integer that selects which of the GPS and optical flow aiding sources will be used
 		(ParamExtInt<px4::params::EKF2_HGT_REF>) _param_ekf2_hgt_ref,    ///< selects the primary source for height data
 
 		(ParamExtInt<px4::params::EKF2_NOAID_TOUT>)
