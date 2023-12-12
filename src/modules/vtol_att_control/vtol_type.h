@@ -270,6 +270,12 @@ public:
 	 */
 	void resetTransitionStates();
 
+	/**
+	 * @brief Handle EKF position resets.
+	 *
+	 */
+	void handleEkfResets();
+
 protected:
 	VtolAttitudeControl *_attc;
 	mode _common_vtol_mode;
@@ -329,6 +335,8 @@ protected:
 	float _dt{0.0025f}; // time step [s]
 
 	float _local_position_z_start_of_transition{0.f}; // altitude at start of transition
+
+	int _altitude_reset_counter{0};
 
 	DEFINE_PARAMETERS_CUSTOM_PARENT(ModuleParams,
 					(ParamBool<px4::params::VT_ELEV_MC_LOCK>) _param_vt_elev_mc_lock,

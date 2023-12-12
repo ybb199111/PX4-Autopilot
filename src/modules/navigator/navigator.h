@@ -65,6 +65,7 @@
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionInterval.hpp>
 #include <uORB/topics/geofence_result.h>
+#include <uORB/topics/gimbal_manager_set_attitude.h>
 #include <uORB/topics/home_position.h>
 #include <uORB/topics/mission.h>
 #include <uORB/topics/mission_result.h>
@@ -249,7 +250,7 @@ public:
 
 	orb_advert_t *get_mavlink_log_pub() { return &_mavlink_log_pub; }
 
-	int mission_instance_count() const { return _mission_result.instance_count; }
+	int mission_instance_count() const { return _mission_result.mission_id; }
 
 	void set_mission_failure_heading_timeout();
 
@@ -260,7 +261,7 @@ public:
 
 	bool abort_landing();
 
-	void geofence_breach_check(bool &have_geofence_position_data);
+	void geofence_breach_check();
 
 	// Param access
 	int get_loiter_min_alt() const { return _param_min_ltr_alt.get(); }
@@ -276,6 +277,7 @@ public:
 
 	void acquire_gimbal_control();
 	void release_gimbal_control();
+	void set_gimbal_neutral();
 
 	void calculate_breaking_stop(double &lat, double &lon, float &yaw);
 
@@ -334,7 +336,8 @@ private:
 	GeofenceBreachAvoidance _gf_breach_avoidance;
 	hrt_abstime _last_geofence_check = 0;
 
-	bool		_geofence_violation_warning_sent{false};	/**< prevents spaming to mavlink */
+	bool		_geofence_reposition_sent{false};		/**< flag if reposition command has been sent for current geofence breach*/
+	hrt_abstime	_time_loitering_after_gf_breach{0};		/**< timestamp of when loitering after a geofence breach was started */
 	bool		_pos_sp_triplet_updated{false};			/**< flags if position SP triplet needs to be published */
 	bool 		_pos_sp_triplet_published_invalid_once{false};	/**< flags if position SP triplet has been published once to UORB */
 	bool		_mission_result_updated{false};			/**< flags if mission result has seen an update */

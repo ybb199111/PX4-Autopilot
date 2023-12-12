@@ -104,6 +104,7 @@ set(msg_files
 	GimbalManagerSetAttitude.msg
 	GimbalManagerSetManualControl.msg
 	GimbalManagerStatus.msg
+	GotoSetpoint.msg
 	GpioConfig.msg
 	GpioIn.msg
 	GpioOut.msg
@@ -233,7 +234,9 @@ set(msg_files
 	VehicleTorqueSetpoint.msg
 	VehicleTrajectoryBezier.msg
 	VehicleTrajectoryWaypoint.msg
+	VelocityLimits.msg
 	VtolVehicleStatus.msg
+	WheelEncoders.msg
 	Wind.msg
 	YawEstimatorStatus.msg
 )
@@ -330,7 +333,7 @@ add_custom_command(
 		--source-output-file ${uorb_message_fields_cpp_file}
 		--header-output-file ${uorb_message_fields_header_file}
 	DEPENDS
-		uorb_json_files
+		${uorb_json_files}
 		${PX4_SOURCE_DIR}/Tools/msg/px_generate_uorb_compressed_fields.py
 	COMMENT "Generating uORB compressed fields"
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

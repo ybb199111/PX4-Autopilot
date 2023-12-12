@@ -256,6 +256,7 @@ private:
 	double _current_longitude{0};
 	float _current_altitude{0.f};
 
+	float _roll{0.f};
 	float _pitch{0.0f};
 	float _yaw{0.0f};
 	float _yawrate{0.0f};
@@ -415,6 +416,7 @@ private:
 
 	// nonlinear path following guidance - lateral-directional position control
 	NPFG _npfg;
+	bool _need_report_npfg_uncertain_condition{false}; ///< boolean if reporting of uncertain npfg output condition is needed
 
 	PerformanceModel _performance_model;
 
@@ -467,6 +469,13 @@ private:
 				 float throttle_trim);
 	void publishLocalPositionSetpoint(const position_setpoint_s &current_waypoint);
 	float getLoadFactor();
+
+	/**
+	 * @brief Get the NPFG roll setpoint with mitigation strategy if npfg is not certain about its output
+	 *
+	 * @return roll setpoint
+	 */
+	float getCorrectedNpfgRollSetpoint();
 
 	/**
 	 * @brief Sets the landing abort status and publishes landing status.
@@ -712,6 +721,7 @@ private:
 	void publishOrbitStatus(const position_setpoint_s pos_sp);
 
 	SlewRate<float> _airspeed_slew_rate_controller;
+	SlewRate<float> _roll_slew_rate;
 
 	/**
 	 * @brief A wrapper function to call the TECS implementation

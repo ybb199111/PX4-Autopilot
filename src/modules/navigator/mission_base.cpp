@@ -114,7 +114,7 @@ void MissionBase::updateMavlinkMission()
 		if (isMissionValid(new_mission)) {
 			/* Relevant mission items updated externally*/
 			if (checkMissionDataChanged(new_mission)) {
-				bool mission_items_changed = (new_mission.mission_update_counter != _mission.mission_update_counter);
+				bool mission_items_changed = (new_mission.mission_id != _mission.mission_id);
 
 				if (new_mission.current_seq < 0) {
 					new_mission.current_seq = math::max(math::min(_mission.current_seq, static_cast<int32_t>(new_mission.count) - 1),
@@ -142,7 +142,6 @@ void MissionBase::onMissionUpdate(bool has_mission_items_changed)
 		// only warn if the check failed on merit
 		if ((!_navigator->get_mission_result()->valid) && _mission.count > 0U) {
 			PX4_WARN("mission check failed");
-			resetMission();
 		}
 	}
 
@@ -190,6 +189,7 @@ MissionBase::on_inactivation()
 	_navigator->disable_camera_trigger();
 
 	_navigator->stop_capturing_images();
+	_navigator->set_gimbal_neutral(); // point forward
 	_navigator->release_gimbal_control();
 
 	if (_navigator->get_precland()->is_activated()) {
@@ -620,6 +620,11 @@ void MissionBase::handleLanding(WorkItemType &new_work_item_type, mission_item_s
 			// if the vehicle drifted off the path during back-transition it should just go straight to the landing point
 			_navigator->reset_position_setpoint(pos_sp_triplet->previous);
 
+			// set gimbal to neutral position (level with horizon) to reduce change of damage on landing
+			_navigator->acquire_gimbal_control();
+			_navigator->set_gimbal_neutral();
+			_navigator->release_gimbal_control();
+
 		} else {
 
 			if (_mission_item.land_precision > 0 && _mission_item.land_precision < 3) {
@@ -690,17 +695,20 @@ MissionBase::checkMissionRestart()
 void
 MissionBase::check_mission_valid()
 {
-	if (_navigator->get_mission_result()->instance_count != _mission.mission_update_counter) {
+	if ((_navigator->get_mission_result()->mission_id != _mission.mission_id)
+	    || (_navigator->get_mission_result()->geofence_id != _mission.geofence_id)
+	    || (_navigator->get_mission_result()->home_position_counter != _navigator->get_home_position()->update_count)) {
+
+		_navigator->get_mission_result()->mission_id = _mission.mission_id;
+		_navigator->get_mission_result()->geofence_id = _mission.geofence_id;
+		_navigator->get_mission_result()->home_position_counter = _navigator->get_home_position()->update_count;
+
 		MissionFeasibilityChecker missionFeasibilityChecker(_navigator, _dataman_client);
-
-		bool is_mission_valid =
-			missionFeasibilityChecker.checkMissionFeasible(_mission);
-
-		_navigator->get_mission_result()->valid = is_mission_valid;
-		_navigator->get_mission_result()->instance_count = _mission.mission_update_counter;
+		_navigator->get_mission_result()->valid = missionFeasibilityChecker.checkMissionFeasible(_mission);
 		_navigator->get_mission_result()->seq_total = _mission.count;
 		_navigator->get_mission_result()->seq_reached = -1;
 		_navigator->get_mission_result()->failure = false;
+
 		set_mission_result();
 	}
 }
@@ -1151,7 +1159,7 @@ void MissionBase::resetMission()
 	new_mission.land_start_index = -1;
 	new_mission.land_index = -1;
 	new_mission.count = 0u;
-	new_mission.mission_update_counter = _mission.mission_update_counter + 1;
+	new_mission.mission_id = 0u;
 	new_mission.dataman_id = _mission.dataman_id == DM_KEY_WAYPOINTS_OFFBOARD_0 ? DM_KEY_WAYPOINTS_OFFBOARD_1 :
 				 DM_KEY_WAYPOINTS_OFFBOARD_0;
 
@@ -1353,8 +1361,8 @@ void MissionBase::checkClimbRequired(int32_t mission_item_index)
 
 bool MissionBase::checkMissionDataChanged(mission_s new_mission)
 {
-	/* count and land_index are the same if the mission_counter did not change. We do not care about changes in geofence or rally counters.*/
+	/* count and land_index are the same if the mission_id did not change. We do not care about changes in geofence or rally counters.*/
 	return ((new_mission.dataman_id != _mission.dataman_id) ||
-		(new_mission.mission_update_counter != _mission.mission_update_counter) ||
+		(new_mission.mission_id != _mission.mission_id) ||
 		(new_mission.current_seq != _mission.current_seq));
 }

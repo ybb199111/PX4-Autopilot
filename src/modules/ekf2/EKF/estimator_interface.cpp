@@ -586,7 +586,7 @@ bool EstimatorInterface::initialise_interface(uint64_t timestamp)
 
 #if defined(CONFIG_EKF2_RANGE_FINDER)
 	// using range finder
-	if ((_params.rng_ctrl != RngCtrl::DISABLED)) {
+	if ((_params.rng_ctrl != static_cast<int32_t>(RngCtrl::DISABLED))) {
 		max_time_delay_ms = math::max(_params.range_delay_ms, max_time_delay_ms);
 	}
 #endif // CONFIG_EKF2_RANGE_FINDER
@@ -656,6 +656,7 @@ int EstimatorInterface::getNumberOfActiveHorizontalAidingSources() const
 	       + int(_control_status.flags.opt_flow)
 	       + int(_control_status.flags.ev_pos)
 	       + int(_control_status.flags.ev_vel)
+	       + int(_control_status.flags.aux_gpos)
 	       // Combined airspeed and sideslip fusion allows sustained wind relative dead reckoning
 	       // and so is treated as a single aiding source.
 	       + int(_control_status.flags.fuse_aspd && _control_status.flags.fuse_beta);

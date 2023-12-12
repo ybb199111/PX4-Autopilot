@@ -269,6 +269,10 @@ menu "Zenoh publishers/subscribers"
 		bool "gimbal_manager_status"
 		default n
 
+	config ZENOH_PUBSUB_GOTO_SETPOINT
+		bool "goto_setpoint"
+		default n
+
 	config ZENOH_PUBSUB_GPIO_CONFIG
 		bool "gpio_config"
 		default n
@@ -789,6 +793,10 @@ menu "Zenoh publishers/subscribers"
 		bool "vtol_vehicle_status"
 		default n
 
+	config ZENOH_PUBSUB_WHEEL_ENCODERS
+		bool "wheel_encoders"
+		default n
+
 	config ZENOH_PUBSUB_WIND
 		bool "wind"
 		default n
@@ -869,6 +877,7 @@ config ZENOH_PUBSUB_ALL_SELECTION
 	select ZENOH_PUBSUB_GIMBAL_MANAGER_SET_ATTITUDE
 	select ZENOH_PUBSUB_GIMBAL_MANAGER_SET_MANUAL_CONTROL
 	select ZENOH_PUBSUB_GIMBAL_MANAGER_STATUS
+	select ZENOH_PUBSUB_GOTO_SETPOINT
 	select ZENOH_PUBSUB_GPIO_CONFIG
 	select ZENOH_PUBSUB_GPIO_IN
 	select ZENOH_PUBSUB_GPIO_OUT
@@ -999,6 +1008,7 @@ config ZENOH_PUBSUB_ALL_SELECTION
 	select ZENOH_PUBSUB_VEHICLE_TRAJECTORY_BEZIER
 	select ZENOH_PUBSUB_VEHICLE_TRAJECTORY_WAYPOINT
 	select ZENOH_PUBSUB_VTOL_VEHICLE_STATUS
+	select ZENOH_PUBSUB_WHEEL_ENCODERS
 	select ZENOH_PUBSUB_WIND
 	select ZENOH_PUBSUB_YAW_ESTIMATOR_STATUS
 

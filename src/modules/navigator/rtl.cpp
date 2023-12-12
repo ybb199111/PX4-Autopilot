@@ -99,9 +99,9 @@ void RTL::updateDatamanCache()
 				_error_state = DatamanState::ReadWait;
 				_dataman_state = DatamanState::Error;
 
-			} else if (_update_counter != _stats.update_counter) {
+			} else if (_opaque_id != _stats.opaque_id) {
 
-				_update_counter = _stats.update_counter;
+				_opaque_id = _stats.opaque_id;
 				_safe_points_updated = false;
 
 				_dataman_cache_safepoint.invalidate();
@@ -144,8 +144,8 @@ void RTL::updateDatamanCache()
 
 	}
 
-	if (_mission_counter != _mission_sub.get().mission_update_counter) {
-		_mission_counter = _mission_sub.get().mission_update_counter;
+	if (_mission_id != _mission_sub.get().mission_id) {
+		_mission_id = _mission_sub.get().mission_id;
 		const dm_item_t dm_item = static_cast<dm_item_t>(_mission_sub.get().dataman_id);
 		_dataman_cache_landItem.invalidate();
 
@@ -256,6 +256,11 @@ void RTL::on_activation()
 	default:
 		break;
 	}
+
+	// set gimbal to neutral position (level with horizon) to reduce change of damage on landing
+	_navigator->acquire_gimbal_control();
+	_navigator->set_gimbal_neutral();
+	_navigator->release_gimbal_control();
 }
 
 void RTL::on_active()

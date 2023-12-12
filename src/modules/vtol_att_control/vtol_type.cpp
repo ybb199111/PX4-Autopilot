@@ -312,6 +312,15 @@ bool VtolType::isFrontTransitionAltitudeLoss()
 	return result;
 }
 
+void VtolType::handleEkfResets()
+{
+	// check if there is a reset in the z-direction, and if so, shift the transition start z as well
+	if (_local_pos->z_reset_counter != _altitude_reset_counter) {
+		_local_position_z_start_of_transition += _local_pos->delta_z;
+		_altitude_reset_counter = _local_pos->z_reset_counter;
+	}
+}
+
 bool VtolType::isPitchExceeded()
 {
 	// fixed-wing maximum pitch angle

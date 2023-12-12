@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2020-2022 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020-2023 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,44 +32,43 @@
  ****************************************************************************/
 
 /**
- * @file ecl_wheel_controller.h
- * Definition of a simple orthogonal coordinated turn yaw PID controller.
- *
- * @author Lorenz Meier <lm@inf.ethz.ch>
- * @author Thomas Gubler <thomasgubler@gmail.com>
- * @author Andreas Antener <andreas@uaventure.com>
- *
- * Acknowledgements:
- *
- *   The control design is based on a design
- *   by Paul Riseborough and Andrew Tridgell, 2013,
- *   which in turn is based on initial work of
- *   Jonathan Challinger, 2012.
+ * @file fw_pitch_controller.h
+ * Definition of a simple pitch P controller.
  */
-#ifndef ECL_HEADING_CONTROLLER_H
-#define ECL_HEADING_CONTROLLER_H
 
-#include "ecl_controller.h"
+#ifndef FW_PITCH_CONTROLLER_H
+#define FW_PITCH_CONTROLLER_H
 
-class ECL_WheelController :
-	public ECL_Controller
+class PitchController
 {
 public:
-	ECL_WheelController() = default;
-	~ECL_WheelController() = default;
+	PitchController() = default;
+	~PitchController() = default;
 
 	/**
-	 * @brief Calculates wheel body rate setpoint.
+	 * @brief Calculates both euler and body pitch rate setpoints.
 	 *
-	 * @param dt Time step [s]
-	 * @param ctrl_data Various control inputs (attitude, body rates, attitdue stepoints, euler rate setpoints, current speeed)
-	 * @return Wheel body rate setpoint [rad/s]
+	 * @param pitch_setpoint pitch setpoint [rad]
+	 * @param euler_yaw_rate_setpoint euler yaw rate setpoint [rad/s]
+	 * @param roll estimated roll [rad]
+	 * @param pitch estimated pitch [rad]
+	 * @return Pitch body rate setpoint [rad/s]
 	 */
-	float control_attitude(const float dt, const ECL_ControlData &ctl_data) override;
+	float control_pitch(float pitch_setpoint, float euler_yaw_rate_setpoint, float roll, float pitch);
 
-	float control_bodyrate(const float dt, const ECL_ControlData &ctl_data);
+	void set_time_constant(float time_constant) { _tc = time_constant; }
+	void set_max_rate_pos(float max_rate_pos) { _max_rate_pos = max_rate_pos; }
+	void set_max_rate_neg(float max_rate_neg) { _max_rate_neg = max_rate_neg; }
 
-	float control_euler_rate(const float dt, const ECL_ControlData &ctl_data, float bodyrate_ff) { (void)ctl_data; return 0; }
+	float get_euler_rate_setpoint() { return _euler_rate_setpoint; }
+	float get_body_rate_setpoint() { return _body_rate_setpoint; }
+
+private:
+	float _tc;
+	float _max_rate_pos;
+	float _max_rate_neg;
+	float _euler_rate_setpoint;
+	float _body_rate_setpoint;
 };
 
-#endif // ECL_HEADING_CONTROLLER_H
+#endif // FW_PITCH_CONTROLLER_H

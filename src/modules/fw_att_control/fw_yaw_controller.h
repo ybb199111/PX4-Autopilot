@@ -32,11 +32,8 @@
  ****************************************************************************/
 
 /**
- * @file ecl_controller.h
- * Definition of base class for other controllers
- *
- * @author Lorenz Meier <lm@inf.ethz.ch>
- * @author Thomas Gubler <thomasgubler@gmail.com>
+ * @file fw_yaw_controller.h
+ * Definition of a simple coordinated turn controller.
  *
  * Acknowledgements:
  *
@@ -46,66 +43,37 @@
  *   Jonathan Challinger, 2012.
  */
 
-#pragma once
+#ifndef FW_YAW_CONTROLLER_H
+#define FW_YAW_CONTROLLER_H
 
-#include <drivers/drv_hrt.h>
-#include <px4_log.h>
-
-struct ECL_ControlData {
-	float roll;
-	float pitch;
-	float yaw;
-	float body_z_rate;
-	float roll_setpoint;
-	float pitch_setpoint;
-	float yaw_setpoint;
-	float euler_pitch_rate_setpoint;
-	float euler_yaw_rate_setpoint;
-	float airspeed_constrained;
-	float groundspeed;
-	float groundspeed_scaler;
-};
-
-class ECL_Controller
+class YawController
 {
 public:
-	ECL_Controller();
-	virtual ~ECL_Controller() = default;
+	YawController() = default;
+	~YawController() = default;
 
 	/**
-	 * @brief Calculates both euler and body rate setpoints. Has different implementations for all body axes.
+	 * @brief Calculates both euler and body yaw rate setpoints for coordinated turn based on current attitude and airspeed
 	 *
-	 * @param dt Time step [s]
-	 * @param ctrl_data Various control inputs (attitude, body rates, attitdue stepoints, euler rate setpoints, current speeed)
-	 * @return Body rate setpoint [rad/s]
+	 * @param roll_setpoint roll setpoint [rad]
+	 * @param euler_pitch_rate_setpoint euler pitch rate setpoint [rad/s]
+	 * @param roll estimated roll [rad]
+	 * @param pitch estimated pitch [rad]
+	 * @param airspeed airspeed [m/s]
+	 * @return Roll body rate setpoint [rad/s]
 	 */
-	virtual float control_attitude(const float dt, const ECL_ControlData &ctl_data) = 0;
+	float control_yaw(float roll_setpoint, float euler_pitch_rate_setpoint, float roll, float pitch,
+			  float airspeed);
 
-	/* Setters */
-	void set_time_constant(float time_constant);
-	void set_k_p(float k_p);
-	void set_k_i(float k_i);
-	void set_k_ff(float k_ff);
-	void set_integrator_max(float max);
-	void set_max_rate(float max_rate);
+	void set_max_rate(float max_rate) { _max_rate = max_rate; }
 
-	/* Getters */
-	float get_euler_rate_setpoint();
-	float get_body_rate_setpoint();
-	float get_integrator();
+	float get_euler_rate_setpoint() { return _euler_rate_setpoint; }
+	float get_body_rate_setpoint() { return _body_rate_setpoint; }
 
-	void reset_integrator();
-
-protected:
-	uint64_t _last_run;
-	float _tc;
-	float _k_p;
-	float _k_i;
-	float _k_ff;
-	float _integrator_max;
+private:
 	float _max_rate;
-	float _last_output;
-	float _integrator;
 	float _euler_rate_setpoint;
 	float _body_rate_setpoint;
 };
+
+#endif // FW_YAW_CONTROLLER_H

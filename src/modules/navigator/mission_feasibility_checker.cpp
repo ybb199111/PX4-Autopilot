@@ -97,7 +97,7 @@ MissionFeasibilityChecker::checkMissionFeasible(const mission_s &mission)
 
 	failed |= _feasibility_checker.someCheckFailed();
 
-	failed |= !checkGeofence(mission, _navigator->get_home_position()->alt, home_valid);
+	failed |= !checkMissionAgainstGeofence(mission, _navigator->get_home_position()->alt, home_valid);
 
 	_navigator->get_mission_result()->warning = failed;
 
@@ -105,7 +105,7 @@ MissionFeasibilityChecker::checkMissionFeasible(const mission_s &mission)
 }
 
 bool
-MissionFeasibilityChecker::checkGeofence(const mission_s &mission, float home_alt, bool home_valid)
+MissionFeasibilityChecker::checkMissionAgainstGeofence(const mission_s &mission, float home_alt, bool home_valid)
 {
 	if (_navigator->get_geofence().isHomeRequired() && !home_valid) {
 		mavlink_log_critical(_navigator->get_mavlink_log_pub(), "Geofence requires valid home position\t");
@@ -137,7 +137,8 @@ MissionFeasibilityChecker::checkGeofence(const mission_s &mission, float home_al
 			// Geofence function checks against home altitude amsl
 			missionitem.altitude = missionitem.altitude_is_relative ? missionitem.altitude + home_alt : missionitem.altitude;
 
-			if (MissionBlock::item_contains_position(missionitem) && !_navigator->get_geofence().check(missionitem)) {
+			if (MissionBlock::item_contains_position(missionitem) && !_navigator->get_geofence().checkPointAgainstAllGeofences(
+				    missionitem.lat, missionitem.lon, missionitem.altitude)) {
 
 				mavlink_log_critical(_navigator->get_mavlink_log_pub(), "Geofence violation for waypoint %zu\t", i + 1);
 				events::send<int16_t>(events::ID("navigator_mis_geofence_violation"), {events::Log::Error, events::LogInternal::Info},

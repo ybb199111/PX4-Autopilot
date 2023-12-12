@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2013-2020 Estimation and Control Library (ECL). All rights reserved.
+ *   Copyright (C) 2023 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name ECL nor the names of its contributors may be
+ * 3. Neither the name PX4 nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,39 +31,58 @@
  *
  ****************************************************************************/
 
-/**
- * @file ecl_pitch_controller.cpp
- * Implementation of a simple orthogonal pitch PID controller.
- *
- * Authors and acknowledgements in header.
- */
+#pragma once
 
-#include "ecl_pitch_controller.h"
-#include <float.h>
-#include <lib/geo/geo.h>
-#include <mathlib/mathlib.h>
+#include <stdint.h>
+#include <px4_platform_common/app.h>
+#include <px4_platform_common/module.h>
+#include <px4_platform_common/module_params.h>
+#include <px4_platform_common/i2c_spi_buses.h>
+#include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
 
-float ECL_PitchController::control_attitude(const float dt, const ECL_ControlData &ctl_data)
+#include <px4_arch/i2c_hw_description.h>
+#include <uORB/Subscription.hpp>
+#include <uORB/topics/parameter_update.h>
+#include <uORB/topics/vehicle_status.h>
+#include <drivers/drv_sensor.h>
+
+using namespace time_literals;
+
+class I2CLauncher : public ModuleBase<I2CLauncher>, public ModuleParams, public px4::ScheduledWorkItem
 {
-	/* Do not calculate control signal with bad inputs */
-	if (!(PX4_ISFINITE(ctl_data.pitch_setpoint) &&
-	      PX4_ISFINITE(ctl_data.roll) &&
-	      PX4_ISFINITE(ctl_data.pitch) &&
-	      PX4_ISFINITE(ctl_data.euler_yaw_rate_setpoint))) {
+public:
+	I2CLauncher(int bus);
 
-		return _body_rate_setpoint;
-	}
+	~I2CLauncher() override;
 
-	/* Calculate the error */
-	float pitch_error = ctl_data.pitch_setpoint - ctl_data.pitch;
+	static int task_spawn(int argc, char *argv[]);
 
-	/*  Apply P controller: rate setpoint from current error and time constant */
-	_euler_rate_setpoint =  pitch_error / _tc;
+	static int custom_command(int argc, char *argv[]);
 
-	/* Transform setpoint to body angular rates (jacobian) */
-	const float pitch_body_rate_setpoint_raw = cosf(ctl_data.roll) * _euler_rate_setpoint +
-			cosf(ctl_data.pitch) * sinf(ctl_data.roll) * ctl_data.euler_yaw_rate_setpoint;
-	_body_rate_setpoint = math::constrain(pitch_body_rate_setpoint_raw, -_max_rate_neg, _max_rate);
+	static int print_usage(const char *reason = nullptr);
 
-	return _body_rate_setpoint;
-}
+	bool init();
+
+private:
+	struct I2CDevice {
+		const char *cmd;
+		uint8_t i2c_addr;
+		uint8_t devid_driver_index;
+	};
+
+	static constexpr I2CDevice _devices[] = {
+		{"ina226", 0x41, DRV_POWER_DEVTYPE_INA226},
+		{"ina228", 0x45, DRV_POWER_DEVTYPE_INA228},
+		{"ina238", 0x45, DRV_POWER_DEVTYPE_INA238},
+	};
+
+	void Run() override;
+
+	static void scan_i2c_bus(int bus);
+
+	uORB::Subscription _parameter_update_sub{ORB_ID(parameter_update)};
+	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};          // regular subscription for additional data
+
+	int _bus;
+	bool _armed {false};
+};

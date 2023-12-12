@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2020-2022 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020-2023 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,56 +32,48 @@
  ****************************************************************************/
 
 /**
- * @file ecl_pitch_controller.h
- * Definition of a simple orthogonal pitch PID controller.
- *
- * @author Lorenz Meier <lm@inf.ethz.ch>
- * @author Thomas Gubler <thomasgubler@gmail.com>
- *
- * Acknowledgements:
- *
- *   The control design is based on a design
- *   by Paul Riseborough and Andrew Tridgell, 2013,
- *   which in turn is based on initial work of
- *   Jonathan Challinger, 2012.
+ * @file fw_wheel_controller.h
+ * Definition of a simple wheel controller.
  */
+#ifndef FW_WHEEL_CONTROLLER_H
+#define FW_WHEEL_CONTROLLER_H
 
-#ifndef ECL_PITCH_CONTROLLER_H
-#define ECL_PITCH_CONTROLLER_H
-
-#include <mathlib/mathlib.h>
-
-#include "ecl_controller.h"
-
-class ECL_PitchController :
-	public ECL_Controller
+class WheelController
 {
 public:
-	ECL_PitchController() = default;
-	~ECL_PitchController() = default;
+	WheelController() = default;
+	~WheelController() = default;
 
 	/**
-	 * @brief Calculates both euler and body pitch rate setpoints.
+	 * @brief Calculates wheel body rate setpoint.
 	 *
-	 * @param dt Time step [s]
-	 * @param ctrl_data Various control inputs (attitude, body rates, attitdue stepoints, euler rate setpoints, current speeed)
-	 * @return Pitch body rate setpoint [rad/s]
+	 * @param yaw_setpoint yaw setpoint [rad]
+	 * @param yaw estimated yaw [rad]
+	 * @return Wheel body rate setpoint [rad/s]
 	 */
-	float control_attitude(const float dt, const ECL_ControlData &ctl_data) override;
+	float control_attitude(float yaw_setpoint, float yaw);
 
-	/* Additional Setters */
-	void set_max_rate_pos(float max_rate_pos)
-	{
-		_max_rate = max_rate_pos;
-	}
+	float control_bodyrate(float dt, float body_z_rate, float groundspeed, float groundspeed_scaler);
 
-	void set_max_rate_neg(float max_rate_neg)
-	{
-		_max_rate_neg = max_rate_neg;
-	}
+	void set_time_constant(float time_constant) { _tc = time_constant; }
+	void set_k_p(float k_p) { _k_p = k_p; }
+	void set_k_i(float k_i) { _k_i = k_i; }
+	void set_k_ff(float k_ff) { _k_ff = k_ff; }
+	void set_integrator_max(float max) { _integrator_max = max; }
+	void set_max_rate(float max_rate) { _max_rate = max_rate; }
 
-protected:
-	float _max_rate_neg{0.0f};
+	void reset_integrator() { _integrator = 0.f; }
+
+private:
+	float _tc;
+	float _k_p;
+	float _k_i;
+	float _k_ff;
+	float _integrator_max;
+	float _max_rate;
+	float _last_output;
+	float _integrator;
+	float _body_rate_setpoint;
 };
 
-#endif // ECL_PITCH_CONTROLLER_H
+#endif // FW_WHEEL_CONTROLLER_H

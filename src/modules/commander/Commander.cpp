@@ -376,6 +376,10 @@ int Commander::custom_command(int argc, char *argv[])
 			} else if (!strcmp(argv[1], "posctl")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_POSCTL);
 
+			} else if (!strcmp(argv[1], "position:slow")) {
+				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_POSCTL,
+						     PX4_CUSTOM_SUB_MODE_POSCTL_SLOW);
+
 			} else if (!strcmp(argv[1], "auto:mission")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_AUTO,
 						     PX4_CUSTOM_SUB_MODE_AUTO_MISSION);
@@ -780,7 +784,16 @@ Commander::handle_command(const vehicle_command_s &cmd)
 					desired_nav_state = vehicle_status_s::NAVIGATION_STATE_ALTCTL;
 
 				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_POSCTL) {
-					desired_nav_state = vehicle_status_s::NAVIGATION_STATE_POSCTL;
+					switch (custom_sub_mode) {
+					default:
+					case PX4_CUSTOM_SUB_MODE_POSCTL_POSCTL:
+						desired_nav_state = vehicle_status_s::NAVIGATION_STATE_POSCTL;
+						break;
+
+					case PX4_CUSTOM_SUB_MODE_POSCTL_SLOW:
+						desired_nav_state = vehicle_status_s::NAVIGATION_STATE_POSITION_SLOW;
+						break;
+					}
 
 				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_AUTO) {
 					if (custom_sub_mode > 0) {
@@ -1935,19 +1948,19 @@ void Commander::checkForMissionUpdate()
 	if (_mission_result_sub.updated()) {
 		const mission_result_s &mission_result = _mission_result_sub.get();
 
-		const auto prev_mission_instance_count = mission_result.instance_count;
+		const auto prev_mission_mission_id = mission_result.mission_id;
 		_mission_result_sub.update();
 
 		// if mission_result is valid for the current mission
 		const bool mission_result_ok = (mission_result.timestamp > _boot_timestamp)
-					       && (mission_result.instance_count > 0);
+					       && (mission_result.mission_id > 0);
 
 		bool auto_mission_available = mission_result_ok && mission_result.valid;
 
 		if (mission_result_ok) {
 			/* Only evaluate mission state if home is set */
 			if (!_failsafe_flags.home_position_invalid &&
-			    (prev_mission_instance_count != mission_result.instance_count)) {
+			    (prev_mission_mission_id != mission_result.mission_id)) {
 
 				if (!auto_mission_available) {
 					/* the mission is invalid */
@@ -2969,7 +2982,7 @@ The commander module contains the state machine for mode switching and failsafe 
 	PRINT_MODULE_USAGE_COMMAND("land");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("transition", "VTOL transition");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("mode", "Change flight mode");
-	PRINT_MODULE_USAGE_ARG("manual|acro|offboard|stabilized|altctl|posctl|auto:mission|auto:loiter|auto:rtl|auto:takeoff|auto:land|auto:precland|ext1",
+	PRINT_MODULE_USAGE_ARG("manual|acro|offboard|stabilized|altctl|posctl|position:slow|auto:mission|auto:loiter|auto:rtl|auto:takeoff|auto:land|auto:precland|ext1",
 			"Flight mode", false);
 	PRINT_MODULE_USAGE_COMMAND("pair");
 	PRINT_MODULE_USAGE_COMMAND("lockdown");

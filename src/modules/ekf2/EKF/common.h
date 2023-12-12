@@ -114,7 +114,7 @@ enum TerrainFusionMask : uint8_t {
 };
 #endif // CONFIG_EKF2_TERRAIN
 
-enum HeightSensor : uint8_t {
+enum class HeightSensor : uint8_t {
 	BARO  = 0,
 	GNSS  = 1,
 	RANGE = 2,
@@ -134,14 +134,14 @@ enum class ImuCtrl : uint8_t {
 	GravityVector = (1<<2),
 };
 
-enum GnssCtrl : uint8_t {
+enum class GnssCtrl : uint8_t {
 	HPOS  = (1<<0),
 	VPOS  = (1<<1),
 	VEL  = (1<<2),
 	YAW  = (1<<3)
 };
 
-enum RngCtrl : uint8_t {
+enum class RngCtrl : uint8_t {
 	DISABLED    = 0,
 	CONDITIONAL = 1,
 	ENABLED     = 2
@@ -277,7 +277,7 @@ struct parameters {
 	int32_t imu_ctrl{static_cast<int32_t>(ImuCtrl::GyroBias) | static_cast<int32_t>(ImuCtrl::AccelBias)};
 
 	// measurement source control
-	int32_t height_sensor_ref{HeightSensor::BARO};
+	int32_t height_sensor_ref{static_cast<int32_t>(HeightSensor::BARO)};
 	int32_t position_sensor_ref{static_cast<int32_t>(PositionSensor::GNSS)};
 
 	int32_t sensor_interval_max_ms{10};     ///< maximum time of arrival difference between non IMU sensor updates. Sets the size of the observation buffers. (mSec)
@@ -325,7 +325,7 @@ struct parameters {
 #endif // CONFIG_EKF2_BAROMETER
 
 #if defined(CONFIG_EKF2_GNSS)
-	int32_t gnss_ctrl{GnssCtrl::HPOS | GnssCtrl::VEL};
+	int32_t gnss_ctrl{static_cast<int32_t>(GnssCtrl::HPOS) | static_cast<int32_t>(GnssCtrl::VEL)};
 	float gps_delay_ms{110.0f};             ///< GPS measurement delay relative to the IMU (mSec)
 
 	Vector3f gps_pos_body{};                ///< xyz position of the GPS antenna in body frame (m)
@@ -418,7 +418,7 @@ struct parameters {
 
 #if defined(CONFIG_EKF2_RANGE_FINDER)
 	// range finder fusion
-	int32_t rng_ctrl{RngCtrl::CONDITIONAL};
+	int32_t rng_ctrl{static_cast<int32_t>(RngCtrl::CONDITIONAL)};
 
 	float range_delay_ms{5.0f};             ///< range finder measurement delay relative to the IMU (mSec)
 	float range_noise{0.1f};                ///< observation noise for range finder measurements (m)
@@ -614,6 +614,7 @@ union filter_control_status_u {
 		uint64_t mag                     : 1; ///< 35 - true if 3-axis magnetometer measurement fusion (mag states only) is intended
 		uint64_t ev_yaw_fault            : 1; ///< 36 - true when the EV heading has been declared faulty and is no longer being used
 		uint64_t mag_heading_consistent  : 1; ///< 37 - true when the heading obtained from mag data is declared consistent with the filter
+		uint64_t aux_gpos                : 1;
 
 	} flags;
 	uint64_t value;

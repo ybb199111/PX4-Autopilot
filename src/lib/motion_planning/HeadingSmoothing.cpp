@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2020-2022 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2023 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,42 +31,28 @@
  *
  ****************************************************************************/
 
-/**
- * @file ecl_yaw_controller.h
- * Definition of a simple orthogonal coordinated turn yaw PID controller.
- *
- * @author Lorenz Meier <lm@inf.ethz.ch>
- * @author Thomas Gubler <thomasgubler@gmail.com>
- *
- * Acknowledgements:
- *
- *   The control design is based on a design
- *   by Paul Riseborough and Andrew Tridgell, 2013,
- *   which in turn is based on initial work of
- *   Jonathan Challinger, 2012.
- */
+#include "HeadingSmoothing.hpp"
 
-#ifndef ECL_YAW_CONTROLLER_H
-#define ECL_YAW_CONTROLLER_H
-
-#include "ecl_controller.h"
-
-class ECL_YawController :
-	public ECL_Controller
+HeadingSmoothing::HeadingSmoothing()
 {
-public:
-	ECL_YawController() = default;
-	~ECL_YawController() = default;
+	_velocity_smoothing.setMaxVel(M_PI_F); // smoothed "velocity" is heading [-pi, pi]
+}
 
-	/**
-	 * @brief Calculates both euler and body yaw rate setpoints.
-	 *
-	 * @param dt Time step [s]
-	 * @param ctrl_data Various control inputs (attitude, body rates, attitdue stepoints, euler rate setpoints, current speeed)
-	 * @return Yaw body rate setpoint [rad/s]
-	 */
-	float control_attitude(const float dt, const ECL_ControlData &ctl_data) override;
+void HeadingSmoothing::reset(const float heading, const float heading_rate)
+{
+	const float wrapped_heading = matrix::wrap_pi(heading);
+	_velocity_smoothing.setCurrentVelocity(wrapped_heading);
+	_velocity_smoothing.setCurrentAcceleration(heading_rate);
+}
 
-};
+void HeadingSmoothing::update(const float heading_setpoint, const float time_elapsed)
+{
+	const float delta_heading_wrapped = matrix::wrap_pi(heading_setpoint - getSmoothedHeading());
+	const float unwrapped_heading_setpoint = delta_heading_wrapped + getSmoothedHeading();
 
-#endif // ECL_YAW_CONTROLLER_H
+	_velocity_smoothing.updateDurations(unwrapped_heading_setpoint);
+	_velocity_smoothing.updateTraj(time_elapsed);
+
+	const float wrapped_current_heading = matrix::wrap_pi(getSmoothedHeading());
+	_velocity_smoothing.setCurrentVelocity(wrapped_current_heading);
+}

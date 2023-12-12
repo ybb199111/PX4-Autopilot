@@ -63,6 +63,8 @@
 #include <matrix/math.hpp>
 #include <lib/mathlib/mathlib.h>
 
+#include <uORB/topics/vehicle_local_position.h>
+
 /*
  * NPFG
  * Lateral-directional nonlinear path following guidance logic with excess wind handling
@@ -71,6 +73,17 @@ class NPFG
 {
 
 public:
+	/**
+	 * @brief Can run
+	 *
+	 * Evaluation if all the necessary information are available such that npfg can produce meaningful results.
+	 *
+	 * @param[in] local_pos is the current vehicle local position uorb message
+	 * @param[in] is_wind_valid flag if the wind estimation is valid
+	 * @return estimate of certainty of the correct functionality of the npfg roll setpoint in [0, 1]. Can be used to define proper mitigation actions.
+	 */
+
+	float canRun(const vehicle_local_position_s &local_pos, bool is_wind_valid) const;
 	/*
 	 * Computes the lateral acceleration and airspeed references necessary to track
 	 * a path in wind (including excess wind conditions).
@@ -237,20 +250,6 @@ public:
 	/*
 	 * [Copied directly from ECL_L1_Pos_Controller]
 	 *
-	 * Set roll angle slew rate. Set to zero to deactivate.
-	 */
-	void setRollSlewRate(float roll_slew_rate) { roll_slew_rate_ = roll_slew_rate; }
-
-	/*
-	 * [Copied directly from ECL_L1_Pos_Controller]
-	 *
-	 * Set control loop dt. The value will be used to apply roll angle setpoint slew rate limiting.
-	 */
-	void setDt(const float dt) { dt_ = dt; }
-
-	/*
-	 * [Copied directly from ECL_L1_Pos_Controller]
-	 *
 	 * Get the switch distance
 	 *
 	 * This is the distance at which the system will switch to the next waypoint.
@@ -270,6 +269,10 @@ public:
 	float getRollSetpoint() { return roll_setpoint_; }
 
 private:
+	static constexpr float HORIZONTAL_EVH_FACTOR_COURSE_VALID{3.f}; ///< Factor of velocity standard deviation above which course calculation is considered good enough
+	static constexpr float HORIZONTAL_EVH_FACTOR_COURSE_INVALID{2.f}; ///< Factor of velocity standard deviation below which course calculation is considered unsafe
+	static constexpr float COS_HEADING_TRACK_ANGLE_NOT_PUSHED_BACK{0.09f}; ///< Cos of Heading to track angle below which it is assumed that the vehicle is not pushed back by the wind ~cos(85°)
+	static constexpr float COS_HEADING_TRACK_ANGLE_PUSHED_BACK{0.f}; ///< Cos of Heading to track angle above which it is assumed that the vehicle is pushed back by the wind
 
 	static constexpr float NPFG_EPSILON = 1.0e-6; // small number *bigger than machine epsilon
 	static constexpr float MIN_RADIUS = 0.5f; // minimum effective radius (avoid singularities) [m]
@@ -347,10 +350,8 @@ private:
 	 * ECL_L1_Pos_Controller functionality
 	 */
 
-	float dt_{0}; // control loop time [s]
 	float roll_lim_rad_{math::radians(30.0f)}; // maximum roll angle [rad]
 	float roll_setpoint_{0.0f}; // current roll angle setpoint [rad]
-	float roll_slew_rate_{0.0f}; // roll angle setpoint slew rate limit [rad/s]
 
 	/*
 	 * Adapts the controller period considering user defined inputs, current flight

@@ -62,6 +62,10 @@
 #include "aid_sources/ZeroGyroUpdate.hpp"
 #include "aid_sources/ZeroVelocityUpdate.hpp"
 
+#if defined(CONFIG_EKF2_AUX_GLOBAL_POSITION)
+# include "aux_global_position.hpp"
+#endif // CONFIG_EKF2_AUX_GLOBAL_POSITION
+
 enum class Likelihood { LOW, MEDIUM, HIGH };
 
 class Ekf final : public EstimatorInterface
@@ -255,7 +259,7 @@ public:
 	// get the ekf WGS-84 origin position and height and the system time it was last set
 	// return true if the origin is valid
 	bool getEkfGlobalOrigin(uint64_t &origin_time, double &latitude, double &longitude, float &origin_alt) const;
-	bool setEkfGlobalOrigin(const double latitude, const double longitude, const float altitude);
+	bool setEkfGlobalOrigin(double latitude, double longitude, float altitude, float eph = 0.f, float epv = 0.f);
 
 	// get the 1-sigma horizontal and vertical position uncertainty of the ekf WGS-84 position
 	void get_ekf_gpos_accuracy(float *ekf_eph, float *ekf_epv) const;
@@ -403,7 +407,7 @@ public:
 
 	float getYawVar() const;
 
-	uint8_t getHeightSensorRef() const { return _height_sensor_ref; }
+	HeightSensor getHeightSensorRef() const { return _height_sensor_ref; }
 
 #if defined(CONFIG_EKF2_AIRSPEED)
 	const auto &aid_src_airspeed() const { return _aid_src_airspeed; }
@@ -467,7 +471,6 @@ public:
 	const auto &aid_src_aux_vel() const { return _aid_src_aux_vel; }
 #endif // CONFIG_EKF2_AUXVEL
 
-
 	bool measurementUpdate(VectorState &K, float innovation_variance, float innovation)
 	{
 		clearInhibitedStateKalmanGains(K);
@@ -497,6 +500,10 @@ public:
 
 		return is_healthy;
 	}
+
+	void updateParameters();
+
+	friend class AuxGlobalPosition;
 
 private:
 
@@ -1132,12 +1139,12 @@ private:
 	// yaw_variance : yaw error variance (rad^2)
 	void resetQuatStateYaw(float yaw, float yaw_variance);
 
-	uint8_t _height_sensor_ref{HeightSensor::UNKNOWN};
-	uint8_t _position_sensor_ref{static_cast<uint8_t>(PositionSensor::GNSS)};
+	HeightSensor _height_sensor_ref{HeightSensor::UNKNOWN};
+	PositionSensor _position_sensor_ref{PositionSensor::GNSS};
 
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
 	HeightBiasEstimator _ev_hgt_b_est{HeightSensor::EV, _height_sensor_ref};
-	PositionBiasEstimator _ev_pos_b_est{static_cast<uint8_t>(PositionSensor::EV), _position_sensor_ref};
+	PositionBiasEstimator _ev_pos_b_est{PositionSensor::EV, _position_sensor_ref};
 	AlphaFilter<Quatf> _ev_q_error_filt{0.001f};
 	bool _ev_q_error_initialized{false};
 #endif // CONFIG_EKF2_EXTERNAL_VISION
@@ -1228,6 +1235,10 @@ private:
 
 	ZeroGyroUpdate _zero_gyro_update{};
 	ZeroVelocityUpdate _zero_velocity_update{};
+
+#if defined(CONFIG_EKF2_AUX_GLOBAL_POSITION) && defined(MODULE_NAME)
+	AuxGlobalPosition _aux_global_position{};
+#endif // CONFIG_EKF2_AUX_GLOBAL_POSITION
 };
 
 #endif // !EKF_EKF_H

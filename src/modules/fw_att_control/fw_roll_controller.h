@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2013-2020 Estimation and Control Library (ECL). All rights reserved.
+ *   Copyright (c) 2020-2023 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name ECL nor the names of its contributors may be
+ * 3. Neither the name PX4 nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,38 +32,41 @@
  ****************************************************************************/
 
 /**
- * @file ecl_roll_controller.cpp
- * Implementation of a simple orthogonal roll PID controller.
- *
- * Authors and acknowledgements in header.
+ * @file fw_roll_controller.h
+ * Definition of a simple roll P controller.
  */
 
-#include "ecl_roll_controller.h"
-#include <float.h>
-#include <lib/geo/geo.h>
-#include <mathlib/mathlib.h>
+#ifndef FW_ROLL_CONTROLLER_H
+#define FW_ROLL_CONTROLLER_H
 
-float ECL_RollController::control_attitude(const float dt, const ECL_ControlData &ctl_data)
+class RollController
 {
-	/* Do not calculate control signal with bad inputs */
-	if (!(PX4_ISFINITE(ctl_data.roll_setpoint) &&
-	      PX4_ISFINITE(ctl_data.euler_yaw_rate_setpoint) &&
-	      PX4_ISFINITE(ctl_data.pitch) &&
-	      PX4_ISFINITE(ctl_data.roll))) {
+public:
+	RollController() = default;
+	~RollController() = default;
 
-		return _body_rate_setpoint;
-	}
+	/**
+	 * @brief Calculates both euler and body roll rate setpoints.
+	 *
+	 * @param roll_setpoint roll setpoint [rad]
+	 * @param euler_yaw_rate_setpoint euler yaw rate setpoint [rad/s]
+	 * @param roll estimated roll [rad]
+	 * @param pitch estimated pitch [rad]
+	 * @return Roll body rate setpoint [rad/s]
+	 */
+	float control_roll(float roll_setpoint, float euler_yaw_rate_setpoint, float roll, float pitch);
 
-	/* Calculate the error */
-	float roll_error = ctl_data.roll_setpoint - ctl_data.roll;
+	void set_time_constant(float time_constant) { _tc = time_constant; }
+	void set_max_rate(float max_rate) { _max_rate = max_rate; }
 
-	/*  Apply P controller: rate setpoint from current error and time constant */
-	_euler_rate_setpoint = roll_error / _tc;
+	float get_euler_rate_setpoint() { return _euler_rate_setpoint; }
+	float get_body_rate_setpoint() { return _body_rate_setpoint; }
 
-	/* Transform setpoint to body angular rates (jacobian) */
-	const float roll_body_rate_setpoint_raw = _euler_rate_setpoint - sinf(ctl_data.pitch) *
-			ctl_data.euler_yaw_rate_setpoint;
-	_body_rate_setpoint = math::constrain(roll_body_rate_setpoint_raw, -_max_rate, _max_rate);
+private:
+	float _tc;
+	float _max_rate;
+	float _euler_rate_setpoint;
+	float _body_rate_setpoint;
+};
 
-	return _body_rate_setpoint;
-}
+#endif // FW_ROLL_CONTROLLER_H
