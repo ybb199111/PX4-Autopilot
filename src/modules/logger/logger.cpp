@@ -69,6 +69,10 @@
 
 //#define DBGPRINT //write status output every few seconds
 
+static_assert(uORB::orb_untokenized_fields_max_length < sizeof(ulog_message_format_s::format) -
+	      HEATSHRINK_DECODER_INPUT_BUFFER_SIZE(_),
+	      "msg definition too long / buffer too short");
+
 #if defined(DBGPRINT)
 // needed for mallinfo
 #if defined(__PX4_POSIX) && !defined(__PX4_DARWIN)
@@ -1606,6 +1610,11 @@ void Logger::print_load_callback(void *user)
 
 void Logger::initialize_load_output(PrintLoadReason reason)
 {
+	// If already in progress, don't try to start again
+	if (_next_load_print != 0) {
+		return;
+	}
+
 	init_print_load(&_load);
 
 	if (reason == PrintLoadReason::Watchdog) {

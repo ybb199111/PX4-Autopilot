@@ -53,6 +53,7 @@ set(msg_files
 	ArmingCheckRequest.msg
 	AutotuneAttitudeControlStatus.msg
 	BatteryStatus.msg
+	Buffer128.msg
 	ButtonEvent.msg
 	CameraCapture.msg
 	CameraStatus.msg
@@ -69,6 +70,7 @@ set(msg_files
 	DebugKeyValue.msg
 	DebugValue.msg
 	DebugVect.msg
+	DifferentialDriveSetpoint.msg
 	DifferentialPressure.msg
 	DistanceSensor.msg
 	Ekf2Timestamps.msg
@@ -91,6 +93,7 @@ set(msg_files
 	FigureEightStatus.msg
 	FailsafeFlags.msg
 	FailureDetectorStatus.msg
+	FlightPhaseEstimation.msg
 	FollowTarget.msg
 	FollowTargetEstimator.msg
 	FollowTargetStatus.msg
@@ -104,6 +107,7 @@ set(msg_files
 	GimbalManagerSetAttitude.msg
 	GimbalManagerSetManualControl.msg
 	GimbalManagerStatus.msg
+	GotoSetpoint.msg
 	GpioConfig.msg
 	GpioIn.msg
 	GpioOut.msg
@@ -169,6 +173,7 @@ set(msg_files
 	RegisterExtComponentReply.msg
 	RegisterExtComponentRequest.msg
 	Rpm.msg
+	RtlStatus.msg
 	RtlTimeEstimate.msg
 	SatelliteInfo.msg
 	SensorAccel.msg
@@ -189,6 +194,7 @@ set(msg_files
 	SensorsStatus.msg
 	SensorsStatusImu.msg
 	SensorUwb.msg
+	SensorAirflow.msg
 	SystemPower.msg
 	TakeoffStatus.msg
 	TaskStackInfo.msg
@@ -233,7 +239,9 @@ set(msg_files
 	VehicleTorqueSetpoint.msg
 	VehicleTrajectoryBezier.msg
 	VehicleTrajectoryWaypoint.msg
+	VelocityLimits.msg
 	VtolVehicleStatus.msg
+	WheelEncoders.msg
 	Wind.msg
 	YawEstimatorStatus.msg
 )
@@ -330,7 +338,7 @@ add_custom_command(
 		--source-output-file ${uorb_message_fields_cpp_file}
 		--header-output-file ${uorb_message_fields_header_file}
 	DEPENDS
-		uorb_json_files
+		${uorb_json_files}
 		${PX4_SOURCE_DIR}/Tools/msg/px_generate_uorb_compressed_fields.py
 	COMMENT "Generating uORB compressed fields"
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

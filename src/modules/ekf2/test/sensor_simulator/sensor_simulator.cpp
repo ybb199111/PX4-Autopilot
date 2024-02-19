@@ -15,6 +15,12 @@ SensorSimulator::SensorSimulator(std::shared_ptr<Ekf> ekf):
 	setSensorRateToDefault();
 	setSensorDataToDefault();
 	startBasicSensor();
+
+	for (int i = 0; i < 3; i++) {
+		_trajectory[i].setMaxJerk(22.f);
+		_trajectory[i].setMaxAccel(8.f);
+		_trajectory[i].setMaxVel(6.f);
+	}
 }
 
 void SensorSimulator::loadSensorDataFromFile(std::string file_name)
@@ -389,20 +395,17 @@ void SensorSimulator::setSensorDataFromTrajectory()
 
 void SensorSimulator::setGpsLatitude(const double latitude)
 {
-	int32_t lat = static_cast<int32_t>(latitude * 1e7);
-	_gps.setLatitude(lat);
+	_gps.setLatitude(latitude);
 }
 
 void SensorSimulator::setGpsLongitude(const double longitude)
 {
-	int32_t lon = static_cast<int32_t>(longitude * 1e7);
-	_gps.setLongitude(lon);
+	_gps.setLongitude(longitude);
 }
 
 void SensorSimulator::setGpsAltitude(const float altitude)
 {
-	int32_t alt = static_cast<int32_t>(altitude * 1e3f);
-	_gps.setAltitude(alt);
+	_gps.setAltitude(altitude);
 }
 
 void SensorSimulator::setImuBias(Vector3f accel_bias, Vector3f gyro_bias)

@@ -62,7 +62,7 @@ PARAM_DEFINE_INT32(EKF2_PREDICT_US, 10000);
  * @bit 1 Accel Bias
  * @bit 2 Gravity vector fusion
  */
-PARAM_DEFINE_INT32(EKF2_IMU_CTRL, 3);
+PARAM_DEFINE_INT32(EKF2_IMU_CTRL, 7);
 
 /**
  * Magnetometer measurement delay relative to IMU measurements
@@ -826,7 +826,7 @@ PARAM_DEFINE_FLOAT(EKF2_EVA_NOISE, 0.1f);
  * @group EKF2
  * @min 0.1
  * @max 10.0
- * @unit m/s^2
+ * @unit g0
  * @decimal 2
  */
 PARAM_DEFINE_FLOAT(EKF2_GRAV_NOISE, 1.0f);
@@ -1537,3 +1537,51 @@ PARAM_DEFINE_INT32(EKF2_SYNT_MAG_Z, 0);
  * @decimal 1
  */
 PARAM_DEFINE_FLOAT(EKF2_GSF_TAS, 15.0f);
+
+/**
+ * Aux global position (AGP) sensor aiding
+ *
+ * Set bits in the following positions to enable:
+ * 0 : Horizontal position fusion
+ * 1 : Vertical position fusion
+ *
+ * @group EKF2
+ * @min 0
+ * @max 3
+ * @bit 0 Horizontal position
+ * @bit 1 Vertical position
+ */
+PARAM_DEFINE_INT32(EKF2_AGP_CTRL, 1);
+
+/**
+ * Aux global position estimator delay relative to IMU measurements
+ *
+ * @group EKF2
+ * @min 0
+ * @max 300
+ * @unit ms
+ * @reboot_required true
+ * @decimal 1
+ */
+PARAM_DEFINE_FLOAT(EKF2_AGP_DELAY, 0);
+
+/**
+ * Measurement noise for aux global position observations used to lower bound or replace the uncertainty included in the message
+ *
+ * @group EKF2
+ * @min 0.01
+ * @unit m
+ * @decimal 2
+ */
+PARAM_DEFINE_FLOAT(EKF2_AGP_NOISE, 0.9f);
+
+/**
+ * Gate size for aux global position fusion
+ *
+ * Sets the number of standard deviations used by the innovation consistency test.
+ * @group EKF2
+ * @min 1.0
+ * @unit SD
+ * @decimal 1
+*/
+PARAM_DEFINE_FLOAT(EKF2_AGP_GATE, 3.0f);

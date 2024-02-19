@@ -84,15 +84,14 @@ public:
 	void setIMUData(const imuSample &imu_sample);
 
 #if defined(CONFIG_EKF2_GNSS)
-	// ask estimator for sensor data collection decision and do any preprocessing if required, returns true if not defined
-	virtual bool collect_gps(const gpsMessage &gps) = 0;
-	void setGpsData(const gpsMessage &gps);
+	void setGpsData(const gnssSample &gnss_sample);
 
-	const gpsSample &get_gps_sample_delayed() const { return _gps_sample_delayed; }
+	const gnssSample &get_gps_sample_delayed() const { return _gps_sample_delayed; }
 
 	float gps_horizontal_position_drift_rate_m_s() const { return _gps_horizontal_position_drift_rate_m_s; }
 	float gps_vertical_position_drift_rate_m_s() const { return _gps_vertical_position_drift_rate_m_s; }
 	float gps_filtered_horizontal_velocity_m_s() const { return _gps_filtered_horizontal_velocity_m_s; }
+
 #endif // CONFIG_EKF2_GNSS
 
 #if defined(CONFIG_EKF2_MAGNETOMETER)
@@ -284,6 +283,9 @@ public:
 	const filter_control_status_u &control_status_prev() const { return _control_status_prev; }
 	const decltype(filter_control_status_u::flags) &control_status_prev_flags() const { return _control_status_prev.flags; }
 
+	void enableControlStatusAuxGpos() { _control_status.flags.aux_gpos = true; }
+	void disableControlStatusAuxGpos() { _control_status.flags.aux_gpos = false; }
+
 	// get EKF internal fault status
 	const fault_status_u &fault_status() const { return _fault_status; }
 	const decltype(fault_status_u::flags) &fault_status_flags() const { return _fault_status.flags; }
@@ -309,8 +311,6 @@ public:
 	const bool &global_origin_valid() const { return _NED_origin_initialised; }
 	const MapProjection &global_origin() const { return _pos_ref; }
 	float getEkfGlobalOriginAltitude() const { return PX4_ISFINITE(_gps_alt_ref) ? _gps_alt_ref : 0.f; }
-
-	void print_status();
 
 	OutputPredictor &output_predictor() { return _output_predictor; };
 
@@ -387,10 +387,10 @@ protected:
 	float _gpos_origin_epv{0.0f}; // vertical position uncertainty of the global origin
 
 #if defined(CONFIG_EKF2_GNSS)
-	RingBuffer<gpsSample> *_gps_buffer{nullptr};
+	RingBuffer<gnssSample> *_gps_buffer{nullptr};
 	uint64_t _time_last_gps_buffer_push{0};
 
-	gpsSample _gps_sample_delayed{};
+	gnssSample _gps_sample_delayed{};
 
 	float _gps_horizontal_position_drift_rate_m_s{NAN}; // Horizontal position drift rate (m/s)
 	float _gps_vertical_position_drift_rate_m_s{NAN};   // Vertical position drift rate (m/s)
@@ -400,7 +400,6 @@ protected:
 	float _gps_alt_prev{0.0f};	// height from the previous GPS message (m)
 
 # if defined(CONFIG_EKF2_GNSS_YAW)
-	float _gps_yaw_offset{0.0f};	// Yaw offset angle for dual GPS antennas used for yaw estimation (radians).
 	// innovation consistency check monitoring ratios
 	AlphaFilter<float> _gnss_yaw_signed_test_ratio_lpf{0.1f}; // average signed test ratio used to detect a bias in the state
 	uint64_t _time_last_gps_yaw_buffer_push{0};
@@ -478,7 +477,7 @@ protected:
 	warning_event_status_u _warning_events{};
 	information_event_status_u _information_events{};
 
-private:
+	unsigned _min_obs_interval_us{0}; // minimum time interval between observations that will guarantee data is not lost (usec)
 
 #if defined(CONFIG_EKF2_DRAG_FUSION)
 	void setDragData(const imuSample &imu);
@@ -491,7 +490,5 @@ private:
 	void printBufferAllocationFailed(const char *buffer_name);
 
 	ImuDownSampler _imu_down_sampler{_params.filter_update_interval_us};
-
-	unsigned _min_obs_interval_us{0}; // minimum time interval between observations that will guarantee data is not lost (usec)
 };
 #endif // !EKF_ESTIMATOR_INTERFACE_H

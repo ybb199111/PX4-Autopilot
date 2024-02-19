@@ -290,6 +290,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 		handle_message_named_value_float(msg);
 		break;
 
+	case MAVLINK_MSG_ID_NAMED_VALUE_INT:
+		handle_message_named_value_int(msg);
+		break;
+
 	case MAVLINK_MSG_ID_DEBUG:
 		handle_message_debug(msg);
 		break;
@@ -322,6 +326,13 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 	case MAVLINK_MSG_ID_GIMBAL_DEVICE_ATTITUDE_STATUS:
 		handle_message_gimbal_device_attitude_status(msg);
 		break;
+
+#if defined(MAVLINK_MSG_ID_SET_VELOCITY_LIMITS) // For now only defined if development.xml is used
+
+	case MAVLINK_MSG_ID_SET_VELOCITY_LIMITS:
+		handle_message_set_velocity_limits(msg);
+		break;
+#endif
 
 	default:
 		break;
@@ -1210,6 +1221,21 @@ MavlinkReceiver::handle_message_set_gps_global_origin(mavlink_message_t *msg)
 
 	handle_request_message_command(MAVLINK_MSG_ID_GPS_GLOBAL_ORIGIN);
 }
+
+#if defined(MAVLINK_MSG_ID_SET_VELOCITY_LIMITS) // For now only defined if development.xml is used
+void MavlinkReceiver::handle_message_set_velocity_limits(mavlink_message_t *msg)
+{
+	mavlink_set_velocity_limits_t mavlink_set_velocity_limits;
+	mavlink_msg_set_velocity_limits_decode(msg, &mavlink_set_velocity_limits);
+
+	velocity_limits_s velocity_limits{};
+	velocity_limits.horizontal_velocity = mavlink_set_velocity_limits.horizontal_speed_limit;
+	velocity_limits.vertical_velocity = mavlink_set_velocity_limits.vertical_speed_limit;
+	velocity_limits.yaw_rate = mavlink_set_velocity_limits.yaw_rate_limit;
+	velocity_limits.timestamp = hrt_absolute_time();
+	_velocity_limits_pub.publish(velocity_limits);
+}
+#endif // MAVLINK_MSG_ID_SET_VELOCITY_LIMITS
 
 void
 MavlinkReceiver::handle_message_vision_position_estimate(mavlink_message_t *msg)
@@ -2778,6 +2804,22 @@ MavlinkReceiver::handle_message_named_value_float(mavlink_message_t *msg)
 {
 	mavlink_named_value_float_t debug_msg;
 	mavlink_msg_named_value_float_decode(msg, &debug_msg);
+
+	debug_key_value_s debug_topic{};
+
+	debug_topic.timestamp = hrt_absolute_time();
+	memcpy(debug_topic.key, debug_msg.name, sizeof(debug_topic.key));
+	debug_topic.key[sizeof(debug_topic.key) - 1] = '\0'; // enforce null termination
+	debug_topic.value = debug_msg.value;
+
+	_debug_key_value_pub.publish(debug_topic);
+}
+
+void
+MavlinkReceiver::handle_message_named_value_int(mavlink_message_t *msg)
+{
+	mavlink_named_value_int_t debug_msg;
+	mavlink_msg_named_value_int_decode(msg, &debug_msg);
 
 	debug_key_value_s debug_topic{};
 
