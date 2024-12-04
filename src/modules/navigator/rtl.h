@@ -78,7 +78,6 @@ public:
 		RTL_MISSION_FAST_REVERSE,
 	};
 
-	void on_inactivation() override;
 	void on_inactive() override;
 	void on_activation() override;
 	void on_active() override;
@@ -89,6 +88,8 @@ public:
 
 	void updateSafePoints(uint32_t new_safe_point_id) { _initiate_safe_points_updated = true; _safe_points_id = new_safe_point_id; }
 
+	bool isLanding();
+
 private:
 	enum class DestinationType {
 		DESTINATION_TYPE_HOME,
@@ -97,6 +98,11 @@ private:
 	};
 
 private:
+
+	/**
+	 * @brief Check mission landing validity
+	 * @return true if mission has a land start, a land and is valid
+	 */
 	bool hasMissionLandStart() const;
 
 	/**

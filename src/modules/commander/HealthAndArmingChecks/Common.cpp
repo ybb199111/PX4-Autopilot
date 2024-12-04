@@ -219,7 +219,7 @@ bool Report::finalize()
 	return _results_changed;
 }
 
-bool Report::report(bool is_armed, bool force)
+bool Report::report(bool force)
 {
 	const hrt_abstime now = hrt_absolute_time();
 	const bool has_difference = _had_unreported_difference || _results_changed;
@@ -284,7 +284,7 @@ bool Report::report(bool is_armed, bool force)
 
 	// send all events
 	int offset = 0;
-	events::EventType event;
+	event_s event;
 
 	for (int i = 0; i < max_num_events && offset < _next_buffer_idx; ++i) {
 		EventBufferHeader *header = (EventBufferHeader *)(_event_buffer + offset);
@@ -316,4 +316,13 @@ bool Report::report(bool is_armed, bool force)
 			       "Health report summary event", 0, current_results.health.is_present,
 			       current_results.health.error, current_results.health.warning);
 	return true;
+}
+
+bool Report::reportIfUnreportedDifferences()
+{
+	if (_had_unreported_difference) {
+		return report(true);
+	}
+
+	return false;
 }

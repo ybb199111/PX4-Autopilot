@@ -65,7 +65,6 @@
 #include "streams/BATTERY_STATUS.hpp"
 #include "streams/CAMERA_IMAGE_CAPTURED.hpp"
 #include "streams/CAMERA_TRIGGER.hpp"
-#include "streams/COLLISION.hpp"
 #include "streams/COMMAND_LONG.hpp"
 #include "streams/COMPONENT_INFORMATION.hpp"
 #include "streams/COMPONENT_METADATA.hpp"
@@ -97,6 +96,7 @@
 #include "streams/OPEN_DRONE_ID_BASIC_ID.hpp"
 #include "streams/OPEN_DRONE_ID_LOCATION.hpp"
 #include "streams/OPEN_DRONE_ID_SYSTEM.hpp"
+#include "streams/OPEN_DRONE_ID_ARM_STATUS.hpp"
 #include "streams/OPTICAL_FLOW_RAD.hpp"
 #include "streams/ORBIT_EXECUTION_STATUS.hpp"
 #include "streams/PING.hpp"
@@ -123,6 +123,9 @@
 #if defined(MAVLINK_MSG_ID_FIGURE_EIGHT_EXECUTION_STATUS)
 #include "streams/FIGURE_EIGHT_EXECUTION_STATUS.hpp"
 #endif // MAVLINK_MSG_ID_FIGURE_EIGHT_EXECUTION_STATUS
+#if defined(MAVLINK_MSG_ID_FUEL_STATUS)
+#include "streams/FUEL_STATUS.hpp"
+#endif // MAVLINK_MSG_ID_FUEL_STATUS
 
 #ifdef MAVLINK_MSG_ID_AVAILABLE_MODES // Only defined if development.xml is used
 #include "streams/AVAILABLE_MODES.hpp"
@@ -150,7 +153,6 @@
 # include "streams/SCALED_PRESSURE3.hpp"
 # include "streams/UAVIONIX_ADSB_OUT_CFG.hpp"
 # include "streams/UAVIONIX_ADSB_OUT_DYNAMIC.hpp"
-# include "streams/UTM_GLOBAL_POSITION.hpp"
 #endif // !CONSTRAINED_FLASH
 
 // ensure PX4 rotation enum and MAV_SENSOR_ROTATION align
@@ -419,9 +421,6 @@ static const StreamListItem streams_list[] = {
 #if defined(ADSB_VEHICLE_HPP)
 	create_stream_list_item<MavlinkStreamADSBVehicle>(),
 #endif // ADSB_VEHICLE_HPP
-#if defined(UTM_GLOBAL_POSITION_HPP)
-	create_stream_list_item<MavlinkStreamUTMGlobalPosition>(),
-#endif // UTM_GLOBAL_POSITION_HPP
 #if defined(COLLISION_HPP)
 	create_stream_list_item<MavlinkStreamCollision>(),
 #endif // COLLISION_HPP
@@ -458,6 +457,9 @@ static const StreamListItem streams_list[] = {
 #if defined(OPEN_DRONE_ID_SYSTEM_HPP)
 	create_stream_list_item<MavlinkStreamOpenDroneIdSystem>(),
 #endif // OPEN_DRONE_ID_SYSTEM_HPP
+#if defined(OPEN_DRONE_ID_ARM_STATUS_HPP)
+	create_stream_list_item<MavlinkStreamOpenDroneIdArmStatus>(),
+#endif // OPEN_DRONE_ID_ARM_STATUS_HPP
 #if defined(ESC_INFO_HPP)
 	create_stream_list_item<MavlinkStreamESCInfo>(),
 #endif // ESC_INFO_HPP
@@ -473,6 +475,9 @@ static const StreamListItem streams_list[] = {
 #if defined(FLIGHT_INFORMATION_HPP)
 	create_stream_list_item<MavlinkStreamFlightInformation>(),
 #endif // FLIGHT_INFORMATION_HPP
+#if defined(FUEL_STATUS_HPP)
+	create_stream_list_item<MavlinkStreamFuelStatus>(),
+#endif // FUEL_STATUS_HPP
 #if defined(GPS_STATUS_HPP)
 	create_stream_list_item<MavlinkStreamGPSStatus>(),
 #endif // GPS_STATUS_HPP
