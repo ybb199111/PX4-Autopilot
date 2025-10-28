@@ -20,7 +20,7 @@ Operating in the 2.4GHz frequency band, it allows unrestricted global use withou
 
 - **Frequency Band:** 2.4GHz
 - **Speed:** Up to 11 Mbps (adjustable)
-- **Range:** Up to 500 meters (varies upon environments)
+- **Range:** Up to 1000 meters (varies upon environments)
 - **Payload Capacity:** Up to 1024 bytes
 
 ### Network Schemes
@@ -111,9 +111,9 @@ However if you change the baud rate from 57600 you will need to create and use a
 
 1. Disable SiK Radio in QGC (**Application Settings → General → AutoConnect**).
 2. Create a new link configuration:
-  - Go to **Application Settings → Comms Links**.
-  - Click **Add**.
-  - Set **Type** to **Serial**, configure the **Serial Port** and **Baud Rate** to match the J.Fi device.
+   - Go to **Application Settings → Comms Links**.
+   - Click **Add**.
+   - Set **Type** to **Serial**, configure the **Serial Port** and **Baud Rate** to match the J.Fi device.
 3. Select **Connect** to connect with the new configuration.
 
 ## J.Fi Configuration
