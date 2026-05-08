@@ -44,6 +44,8 @@
 
 using namespace time_literals;
 
+ModuleBase::Descriptor ILabs::desc{task_spawn, custom_command, print_usage};
+
 // GPS epoch: 1980-01-06 00:00:00 UTC
 constexpr uint64_t GPS_EPOCH_SECS = 315964800ULL;
 
@@ -65,13 +67,15 @@ enum ILabsMode {
 ILabs::ILabs(const char *serialDeviceName)
 	: ModuleParams(nullptr),
 	  ScheduledWorkItem(MODULE_NAME, px4::serial_port_to_wq(serialDeviceName)),
-	  _attitude_pub((_param_ilabs_mode.get() == ILabsMode::RAW_SENSORS_DATA) ? ORB_ID(external_ins_attitude)
-																			 : ORB_ID(vehicle_attitude)),
-	  _local_position_pub((_param_ilabs_mode.get() == ILabsMode::RAW_SENSORS_DATA) ? ORB_ID(external_ins_local_position)
-																				   : ORB_ID(vehicle_local_position)),
+	  _attitude_pub((_param_ilabs_mode.get() == ILabsMode::RAW_SENSORS_DATA)
+			    ? ORB_ID(external_ins_attitude)
+			    : ORB_ID(vehicle_attitude)),
+	  _local_position_pub((_param_ilabs_mode.get() == ILabsMode::RAW_SENSORS_DATA)
+				  ? ORB_ID(external_ins_local_position)
+				  : ORB_ID(vehicle_local_position)),
 	  _global_position_pub((_param_ilabs_mode.get() == ILabsMode::RAW_SENSORS_DATA)
-							   ? ORB_ID(external_ins_global_position)
-							   : ORB_ID(vehicle_global_position)) {
+				   ? ORB_ID(external_ins_global_position)
+				   : ORB_ID(vehicle_global_position)) {
 	// store port name
 	strncpy(_serialDeviceName, serialDeviceName, sizeof(_serialDeviceName) - 1);
 
@@ -152,8 +156,8 @@ int ILabs::task_spawn(int argc, char *argv[]) {
 			return PX4_ERROR;
 		}
 
-		_object.store(instance);
-		_task_id = task_id_is_work_queue;
+		desc.object.store(instance);
+		desc.task_id = task_id_is_work_queue;
 
 		instance->ScheduleNow();
 
@@ -227,7 +231,7 @@ int ILabs::print_status() {
 void ILabs::Run() {
 	if (should_exit()) {
 		_sensor.deinit();
-		exit_and_cleanup();
+		exit_and_cleanup(desc);
 		return;
 	}
 
@@ -236,34 +240,42 @@ void ILabs::Run() {
 
 		if (!result) {
 			PX4_ERR("Sensor initializing error");
-			ScheduleDelayed(1_s);
+			_sensor.deinit();
+			_time_initialized.store(0);
+			_time_last_valid_imu_data.store(0);
+			ScheduleDelayed(3_s);
 			return;
 		}
 		_time_initialized.store(hrt_absolute_time());
 	}
 
-	// check for timeout
 	const hrt_abstime time_initialized         = _time_initialized.load();
 	const hrt_abstime time_last_valid_imu_data = _time_last_valid_imu_data.load();
 
-	if (_param_ilabs_mode.get() == ILabsMode::FULL_INS && time_last_valid_imu_data != 0 &&
-		hrt_elapsed_time(&time_last_valid_imu_data) < 3_s) {
-		// update sensor_selection if configured in INS mode
+	// Update sensor_selection for FULL_INS mode
+	if (_param_ilabs_mode.get() == ILabsMode::FULL_INS && time_initialized != 0 && time_last_valid_imu_data != 0 &&
+	    hrt_elapsed_time(&time_last_valid_imu_data) < 3_s) {
+
 		if ((_px4_accel.get_device_id() != 0) && (_px4_gyro.get_device_id() != 0)) {
 			sensor_selection_s sensor_selection{};
 			sensor_selection.accel_device_id = _px4_accel.get_device_id();
 			sensor_selection.gyro_device_id  = _px4_gyro.get_device_id();
-			sensor_selection.timestamp       = _time_initialized.load();
+			sensor_selection.timestamp       = time_initialized;
 			_sensor_selection_pub.publish(sensor_selection);
 		} else {
 			PX4_ERR("Sensor not initialized");
 		}
 	}
 
-	if (time_initialized != 0 && hrt_elapsed_time(&time_last_valid_imu_data) > 5_s &&
-		time_last_valid_imu_data != 0 && hrt_elapsed_time(&time_last_valid_imu_data) > 1_s) {
-		PX4_ERR("Timeout, reinitializing");
+	// Missing data handling
+	if (time_initialized != 0 && time_last_valid_imu_data != 0 &&
+	    hrt_elapsed_time(&time_last_valid_imu_data) > 3_s) {
+		PX4_ERR("Timeout: no new data from sensor. Reinitializing");
 		_sensor.deinit();
+		_time_initialized.store(0);
+		_time_last_valid_imu_data.store(0);
+		ScheduleDelayed(3_s);
+		return;
 	}
 
 	ScheduleDelayed(100_ms);
@@ -460,8 +472,8 @@ void ILabs::processData(InertialLabs::SensorsData *data) {
 
 		sensor_gps.latitude_deg   = data->gps.latitude;
 		sensor_gps.longitude_deg  = data->gps.longitude;
-		sensor_gps.altitude_ellipsoid_m = data->gps.altitude;
-		sensor_gps.altitude_msl_m = data->gps.altitude;
+		sensor_gps.altitude_ellipsoid_m = static_cast<double>(data->gps.altitude);
+		sensor_gps.altitude_msl_m = static_cast<double>(data->gps.altitude);
 
 		sensor_gps.fix_type = data->gps.fixType + 1;
 
@@ -475,7 +487,7 @@ void ILabs::processData(InertialLabs::SensorsData *data) {
 
 		sensor_gps.jamming_state = data->gps.jamStatus;
 		sensor_gps.jamming_indicator = (sensor_gps.jamming_state != InertialLabs::JammingStatus::UNKOWN_OR_DISABLED) &&
-					       (sensor_gps.jamming_state != InertialLabs::JammingStatus::OK);
+					       (sensor_gps.jamming_state != InertialLabs::JammingStatus::NO_SIGNIFICANT);
 		sensor_gps.spoofing_state = data->gps.spoofingStatus;
 
 		sensor_gps.vel_m_s =
@@ -522,5 +534,5 @@ void ILabs::processData(InertialLabs::SensorsData *data) {
 }
 
 extern "C" __EXPORT int ilabs_main(int argc, char *argv[]) {
-	return ILabs::main(argc, argv);
+	return ModuleBase::main(ILabs::desc, argc, argv);
 }

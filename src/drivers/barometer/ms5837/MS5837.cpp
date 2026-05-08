@@ -269,8 +269,13 @@ int MS5837::_collect()
 
 	perf_begin(_sample_perf);
 
-	/* read the most recent measurement - read offset/size are hardcoded in the interface */
-	const hrt_abstime timestamp_sample = hrt_absolute_time();
+	/* Correct for measurement integration delay: the conversion was
+	 * started CONVERSION_INTERVAL ago and took OSR1024_CONVERSION_TIME
+	 * to integrate, so the effective sample midpoint is
+	 * (CONVERSION_INTERVAL - OSR1024_CONVERSION_TIME/2) before now. */
+	const hrt_abstime now = hrt_absolute_time();
+	static constexpr hrt_abstime correction = MS5837_CONVERSION_INTERVAL - MS5837_OSR1024_CONVERSION_TIME / 2;
+	const hrt_abstime timestamp_sample = (now > correction) ? (now - correction) : now;
 	int ret = read(0, (void *)&raw, 0);
 
 	if (ret < 0) {
@@ -332,14 +337,13 @@ int MS5837::_collect()
 
 	} else {
 		/* pressure calculation, result in Pa */
-		int32_t P = (((raw * _SENS) >> 21) - _OFF) >> 13;
-
+		int32_t pressure_pascal = ((((raw * _SENS) >> 21) - _OFF) >> 13) * 10;
 
 		// publish
 		sensor_baro_s sensor_baro{};
 		sensor_baro.timestamp_sample = timestamp_sample;
 		sensor_baro.device_id = get_device_id();
-		sensor_baro.pressure = P;
+		sensor_baro.pressure = pressure_pascal;
 		sensor_baro.temperature = _last_temperature;
 		sensor_baro.error_count = perf_event_count(_comms_errors);
 		sensor_baro.timestamp = hrt_absolute_time();

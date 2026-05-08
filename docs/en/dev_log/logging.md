@@ -33,12 +33,12 @@ The logging system is configured by default to collect sensible logs for [flight
 Logging may further be configured using the [SD Logging](../advanced_config/parameter_reference.md#sd-logging) parameters.
 The parameters you are most likely to change are listed below.
 
-| Parameter                                                                | Description                                                                                                                                                                                                                                                                                                                                                                      |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Parameter                                                                | Description                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [SDLOG_MODE](../advanced_config/parameter_reference.md#SDLOG_MODE)       | Logging Mode. Defines when logging starts and stops.<br />- `0`: Log when armed until disarm (default).<br />- `1`: Log from boot until disarm.<br />- `2`: Log from boot until shutdown.<br />- `3`: Log based on the [AUX1 RC channel](../advanced_config/parameter_reference.md#RC_MAP_AUX1).<br />- `4`: Log from first armed until shutdown. |
-| [SDLOG_BACKEND](../advanced_config/parameter_reference.md#SDLOG_BACKEND) | Logging Backend (bitmask). Setting a bit enables the corresponding backend. If no backend is selected, the logger is disabled.<br />- bit `0`: SD card logging.</br >- bit `1`: Mavlink logging.
-| [SDLOG_PROFILE](../advanced_config/parameter_reference.md#SDLOG_PROFILE) | Logging profile. Use this to enable less common logging/analysis (e.g. for EKF2 replay, high rate logging for PID & filter tuning, thermal temperature calibration).                                                                                                                                                                                                             |
-| [SDLOG_MISSION](../advanced_config/parameter_reference.md#SDLOG_MISSION) | Create very small additional "Mission Log".<br>This log can _not_ be used with [Flight Review](../log/flight_log_analysis.md#flight-review-online-tool), but is useful when you need a small log for geotagging or regulatory compliance.                                                                                                                                        |
+| [SDLOG_BACKEND](../advanced_config/parameter_reference.md#SDLOG_BACKEND) | Logging Backend (bitmask). Setting a bit enables the corresponding backend. If no backend is selected, the logger is disabled.<br />- bit `0`: SD card logging.</br >- bit `1`: Mavlink logging.                                                                                                                                                  |
+| [SDLOG_PROFILE](../advanced_config/parameter_reference.md#SDLOG_PROFILE) | Logging profile. Use this to enable less common logging/analysis (e.g. for EKF2 replay, high rate logging for PID & filter tuning, thermal temperature calibration).                                                                                                                                                                              |
+| [SDLOG_MISSION](../advanced_config/parameter_reference.md#SDLOG_MISSION) | Create very small additional "Mission Log".<br>This log can _not_ be used with [Flight Review](../log/flight_log_analysis.md#flight-review-online-tool), but is useful when you need a small log for geotagging or regulatory compliance.                                                                                                         |
 
 Useful settings for specific cases:
 
@@ -82,6 +82,31 @@ This configuration will log sensor_accel 0 at full rate, sensor_accel 1 at 10Hz,
 ## Scripts
 
 There are several scripts to analyze and convert logging files in the [pyulog](https://github.com/PX4/pyulog) repository.
+
+## Log Cleanup
+
+PX4 automatically manages log storage by rotating log files during writing and cleaning up old logs when starting a new log.
+Rotation is **on by default**: when the current file reaches [SDLOG_MAX_SIZE](../advanced_config/parameter_reference.md#SDLOG_MAX_SIZE), the logger closes it and opens a new one, and old `.ulg` files are deleted (oldest first) to keep free space above the threshold set by [SDLOG_ROTATE](../advanced_config/parameter_reference.md#SDLOG_ROTATE).
+
+Three parameters control how much space logs may use:
+
+- [SDLOG_ROTATE](../advanced_config/parameter_reference.md#SDLOG_ROTATE) is the maximum disk usage percentage (default 90).
+  Cleanup prior to logging (see below) ensures at least `(100 - SDLOG_ROTATE)%` of the disk stays free at all times, **even while writing a new log file**.
+  Setting it to `0` disables space-based cleanup entirely; setting it to `100` lets logs fill the disk completely.
+- [SDLOG_MAX_SIZE](../advanced_config/parameter_reference.md#SDLOG_MAX_SIZE) is the maximum size of a single log file in MB
+  (default 1024). It also reserves headroom so that a full new file always fits after cleanup.
+- [SDLOG_DIRS_MAX](../advanced_config/parameter_reference.md#SDLOG_DIRS_MAX) optionally caps the number of log directories kept (default 0, disabled).
+  This runs on top of the space-based cleanup and is mainly useful for capping log usage by count independent of available disk size (e.g. in SITL, where it defaults to `7`).
+
+At log start, the cleanup threshold is `((100 - SDLOG_ROTATE)% of disk) + SDLOG_MAX_SIZE`.
+The oldest logs are deleted until the free space meets this threshold.
+For example, on an 8 GB card with defaults, cleanup keeps at least `820 + 1024 = ~1.8 GB` free at log start,
+so ~6 GB is usable for logs and disk usage never exceeds 90% during writing.
+Small flash targets override `SDLOG_MAX_SIZE` to a smaller value to keep more logs within the available space.
+
+PX4 stores logs in directories named with one of two formats, depending on whether the system has valid time: date directories (such as `2024-01-15` or `2024-01-16`) when it does, and session directories (`sess001`) when it doesn't.
+The cleanup algorithm prioritises deleting logs from whichever format is not currently in use.
+This ensures that stale logs from a different time mode are cleaned up before current logs.
 
 ## File size limitations
 

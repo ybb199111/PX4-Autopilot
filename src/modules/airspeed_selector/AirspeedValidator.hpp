@@ -95,20 +95,12 @@ public:
 
 	// setters wind estimator parameters
 	void set_wind_estimator_wind_process_noise_spectral_density(float wind_nsd) { _wind_estimator.set_wind_process_noise_spectral_density(wind_nsd); }
-	void set_wind_estimator_tas_scale_process_noise_spectral_density(float tas_scale_nsd) { _wind_estimator.set_tas_scale_process_noise_spectral_density(tas_scale_nsd); }
+	void set_wind_estimator_tas_noise(float tas_sigma) { _wind_estimator.set_tas_noise(tas_sigma); }
+
 	void set_wind_estimator_tas_scale_init(float tas_scale_init)
 	{
 		_tas_scale_init = tas_scale_init;
 	}
-
-	void set_wind_estimator_tas_noise(float tas_sigma) { _wind_estimator.set_tas_noise(tas_sigma); }
-	void set_wind_estimator_beta_noise(float beta_var) { _wind_estimator.set_beta_noise(beta_var); }
-	void set_wind_estimator_tas_gate(uint8_t gate_size)
-	{
-		_wind_estimator.set_tas_gate(gate_size);
-	}
-
-	void set_wind_estimator_beta_gate(uint8_t gate_size) { _wind_estimator.set_beta_gate(gate_size); }
 
 	// setters for failure detection tuning parameters
 	void set_tas_innov_threshold(float tas_innov_threshold) { _tas_innov_threshold = tas_innov_threshold; }
@@ -121,6 +113,7 @@ public:
 	void set_tas_scale_apply(int tas_scale_apply) { _tas_scale_apply = tas_scale_apply; }
 	void set_CAS_scale_validated(float scale) { _CAS_scale_validated = scale; }
 	void set_scale_init(float scale) { _wind_estimator.set_scale_init(scale); }
+	void reset_scale_estimator() { _wind_estimator.reset_scale_to_init(); }
 
 	void set_enable_data_stuck_check(bool enable) { _data_stuck_check_enabled = enable; }
 	void set_enable_innovation_check(bool enable) { _innovation_check_enabled = enable; }

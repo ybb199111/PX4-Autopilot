@@ -105,6 +105,7 @@ public:
 		bool unresponsive_reported{false};
 		int arming_check_registration_id{-1};
 		int mode_executor_registration_id{-1};
+		bool request_offboard_setpoints{false};
 		config_overrides_s overrides{};
 		vehicle_control_mode_s config_control_setpoint{};
 	};
@@ -130,7 +131,7 @@ class ModeManagement : public ModeChangeHandler
 {
 public:
 	ModeManagement(ExternalChecks &external_checks);
-	~ModeManagement() = default;
+	virtual ~ModeManagement() = default;
 
 	struct UpdateRequest {
 		bool change_user_intended_nav_state{false};
@@ -150,6 +151,12 @@ public:
 	 */
 	int modeExecutorInCharge() const;
 
+	/**
+	 * Returns the executor's navigation state if active, otherwise nav_state.
+	 * Exposes the high-level goal rather than the effective sub-mode.
+	 */
+	uint8_t getNavStateDisplay(uint8_t nav_state) const;
+
 	void onUserIntendedNavStateChange(ModeChangeSource source, uint8_t user_intended_nav_state) override;
 	uint8_t getReplacedModeIfAny(uint8_t nav_state) override;
 
@@ -162,6 +169,8 @@ public:
 	void printStatus() const;
 
 	void getModeStatus(uint32_t &valid_nav_state_mask, uint32_t &can_set_nav_state_mask) const;
+
+	bool currentModeAcceptsOffboardSetpoints(uint8_t nav_state) const;
 
 	void updateActiveConfigOverrides(uint8_t nav_state, config_overrides_s &overrides_in_out);
 
@@ -196,7 +205,7 @@ class ModeManagement : public ModeChangeHandler
 {
 public:
 	ModeManagement() = default;
-	~ModeManagement() = default;
+	virtual ~ModeManagement() = default;
 
 	struct UpdateRequest {
 		bool change_user_intended_nav_state{false};
@@ -208,6 +217,7 @@ public:
 	void setFailsafeState(bool failsafe_action_active) {}
 
 	int modeExecutorInCharge() const { return ModeExecutors::AUTOPILOT_EXECUTOR_ID; }
+	uint8_t getNavStateDisplay(uint8_t nav_state) const { return nav_state; }
 
 	void onUserIntendedNavStateChange(ModeChangeSource source, uint8_t user_intended_nav_state) override {}
 	uint8_t getReplacedModeIfAny(uint8_t nav_state) override { return nav_state; }
@@ -223,6 +233,11 @@ public:
 	{
 		valid_nav_state_mask = mode_util::getValidNavStates();
 		can_set_nav_state_mask = valid_nav_state_mask & ~(1u << vehicle_status_s::NAVIGATION_STATE_TERMINATION);
+	}
+
+	bool currentModeAcceptsOffboardSetpoints(uint8_t nav_state) const
+	{
+		return nav_state == vehicle_status_s::NAVIGATION_STATE_OFFBOARD;
 	}
 
 	void updateActiveConfigOverrides(uint8_t nav_state, config_overrides_s &overrides_in_out) { }

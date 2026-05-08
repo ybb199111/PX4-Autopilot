@@ -43,6 +43,8 @@
 #include <iostream>
 #include <string>
 
+ModuleBase::Descriptor GZBridge::desc{task_spawn, custom_command, print_usage};
+
 GZBridge::GZBridge(const std::string &world, const std::string &model_name) :
 	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::rate_ctrl),
@@ -150,11 +152,15 @@ int GZBridge::init()
 		return PX4_ERROR;
 	}
 
+#if defined(CONFIG_MODULES_GIMBAL)
+
 	// Gimbal mixing interface
 	if (!_gimbal.init(_world_name, _model_name)) {
 		PX4_ERR("failed to init gimbal");
 		return PX4_ERROR;
 	}
+
+#endif // CONFIG_MODULES_GIMBAL
 
 	ScheduleNow();
 	return OK;
@@ -170,7 +176,7 @@ void GZBridge::Run()
 		_mixing_interface_wheel.stop();
 		_gimbal.stop();
 
-		exit_and_cleanup();
+		exit_and_cleanup(desc);
 		return;
 	}
 
@@ -388,7 +394,10 @@ void GZBridge::magnetometerCallback(const gz::msgs::Magnetometer &msg)
 	id.devid_s.bus_type = device::Device::DeviceBusType::DeviceBusType_SIMULATION;
 	id.devid_s.devtype = DRV_MAG_DEVTYPE_MAGSIM;
 	id.devid_s.bus = 1;
-	id.devid_s.address = 3; // TODO: any value other than 3 causes Commander to not use the mag.... wtf
+
+	// Parameters CAL_MAGx_ID set to 0x3030C and 0x3040C in init.d-posix so only address 3 and 4 are valid for sim magnetometers (unless overwritten)
+	// See: https://github.com/PX4/PX4-Autopilot/blob/main/ROMFS/px4fmu_common/init.d-posix/rcS#L146-L149
+	id.devid_s.address = 3;
 
 	sensor_mag_s report{};
 	report.timestamp = timestamp;
@@ -396,7 +405,7 @@ void GZBridge::magnetometerCallback(const gz::msgs::Magnetometer &msg)
 	report.device_id = id.devid;
 	report.temperature = this->_temperature;
 
-	// FIMEX: once we're on jetty or later
+	// FIXME: once we're on jetty or later
 	// The magnetometer plugin publishes in units of gauss and in a weird left handed coordinate system
 	// https://github.com/gazebosim/gz-sim/pull/2460
 	report.x = -msg.field_tesla().y();
@@ -983,13 +992,13 @@ int GZBridge::task_spawn(int argc, char *argv[])
 		return PX4_ERROR;
 	}
 
-	_object.store(instance);
-	_task_id = task_id_is_work_queue;
+	desc.object.store(instance);
+	desc.task_id = task_id_is_work_queue;
 
 	if (instance->init() != PX4_OK) {
 		delete instance;
-		_object.store(nullptr);
-		_task_id = -1;
+		desc.object.store(nullptr);
+		desc.task_id = -1;
 		return PX4_ERROR;
 	}
 
@@ -1038,5 +1047,5 @@ int GZBridge::print_usage(const char *reason)
 
 extern "C" __EXPORT int gz_bridge_main(int argc, char *argv[])
 {
-	return GZBridge::main(argc, argv);
+	return ModuleBase::main(GZBridge::desc, argc, argv);
 }
