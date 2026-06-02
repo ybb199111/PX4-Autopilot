@@ -229,6 +229,23 @@ In Fixed-wing, the position estimate is never strictly invalidated as long as we
 
 Note that if there is no horizontal aiding source anymore, the position estimate is invalidated after `EKF2_NOAID_TOUT`, and the standard position loss failsafe applies.
 
+### GNSS Check Failsafe
+
+<Badge type="tip" text="PX4 v1.18" />
+
+Triggers on either of:
+
+- **Count drop**: receivers with a 3D fix drop below [SYS_HAS_NUM_GNSS](#SYS_HAS_NUM_GNSS). No failsafe action when `SYS_HAS_NUM_GNSS=0` (default).
+- **Position divergence**: two receivers disagree beyond their expected separation (configured via [SENS_GPS0_OFFX/Y](../advanced_config/parameter_reference.md#SENS_GPS0_OFFX), [SENS_GPS1_OFFX/Y](../advanced_config/parameter_reference.md#SENS_GPS1_OFFX)) plus reported accuracy. Only triggers a failsafe action if `SYS_HAS_NUM_GNSS=2`.
+
+At least a warning is emitted, additional failsafe actions can be configured using [COM_GNSSLOSS_ACT](#COM_GNSSLOSS_ACT).
+Loss of a single GPS when none are required is handled by other GPS health checks.
+
+| Parameter                                                                                                   | Description                                                                                                               |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| <a id="SYS_HAS_NUM_GNSS"></a>[SYS_HAS_NUM_GNSS](../advanced_config/parameter_reference.md#SYS_HAS_NUM_GNSS) | Number of usable GNSS receivers required for arming and flight. If two are required then they also need to be consistent. |
+| <a id="COM_GNSSLOSS_ACT"></a>[COM_GNSSLOSS_ACT](../advanced_config/parameter_reference.md#COM_GNSSLOSS_ACT) | Failsafe action when a GNSS failure is detected. Actions other than a warning also lead to arming being blocked.          |
+
 ## Offboard Loss Failsafe
 
 The _Offboard Loss Failsafe_ is triggered if the offboard link is lost while under [Offboard control](../flight_modes/offboard.md).
@@ -262,6 +279,16 @@ The failsafe action and arming behaviour are both configured by the `COM_ARM_ODI
 | Parameter                                                                                       | Description                                                                                                                                                                                                                                                                                                                                    |
 | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | <a id="COM_ARM_ODID"></a>[COM_ARM_ODID](../advanced_config/parameter_reference.md#COM_ARM_ODID) | Remote ID arming check and in-flight failsafe. `0`: Disabled (default), `1`: Warning only, `2`: Error only (prevents arming), `3`: Return, `4`: Land, `5`: Terminate.<br><br>On failsafe:<br>- `Error`, `Return`, `Land` and `Terminate` prevent arming.<br>- `Return`, `Land` and `Terminate` start the associated action/mode when airborne. |
+
+## Parachute Health Failsafe
+
+<Badge type="tip" text="PX4 v1.18" />
+
+The parachute health failsafe is triggered when a [MAVLink parachute](../peripherals/parachute.md) system is missing or unhealthy while the vehicle is armed or airborne.
+
+| Parameter                                                                                          | Description                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="COM_PARACHUTE"></a>[COM_PARACHUTE](../advanced_config/parameter_reference.md#COM_PARACHUTE) | Parachute system monitoring and failsafe action.<br>`0`: Disabled (default), `1`: [Warning](#act_warn), `2`: [Return](#act_return), `3`: [Land](#act_land).<br><br>- Everything but `Disabled` prevents arming with a failing check.<br>- [Return](#act_return) and [Land](#act_land) start the associated action when a failure happens in-flight. |
 
 ## Quad-chute Failsafe
 
