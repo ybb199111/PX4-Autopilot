@@ -50,7 +50,21 @@ If it is not visible the vehicle immediately performs a _normal_ landing at the 
 Search procedures are initiated in the first and second steps, and will run at most [PLD_MAX_SRCH](../advanced_config/parameter_reference.md#PLD_MAX_SRCH) times.
 착륙 단계 흐름도
 
-A flow diagram showing the phases can be found in [landing phases flow Diagram](#landing-phases-flow-diagram) below.
+A flow diagram showing the phases can be found in [landing phases flow diagram](#landing-phases-flow-diagram) below.
+
+### Yaw Alignment
+
+Precision landing can optionally align the multicopter's yaw to match the detected target orientation while the vehicle is approaching or descending above the pad.
+Enable this behaviour with [PLD_YAW_EN](#PLD_YAW_EN).
+
+When enabled, PX4 uses the [`vte_orientation`](../msg_docs/VteOrientation.md) topic (published by the [Vision Target Estimator](../advanced_features/vision_target_estimator.md)) to command the yaw setpoint as long as the orientation data remains valid.
+If the orientation feed times out (see [PLD_BTOUT](../advanced_config/parameter_reference.md#PLD_BTOUT)) or the parameter is disabled, yaw control falls back to the default mission behaviour.
+
+:::warning
+Yaw alignment depends on the [Vision Target Estimator](../advanced_features/vision_target_estimator.md), which is not in the default board configurations.
+To use this feature you must [build a firmware that includes the module](../advanced_features/vision_target_estimator.md#building-the-module) and enable it at runtime with [VTE_EN](../advanced_config/parameter_reference.md#VTE_EN)=1 and [VTE_YAW_EN](../advanced_config/parameter_reference.md#VTE_YAW_EN)=1.
+Without this, `vte_orientation` is never published and [PLD_YAW_EN](#PLD_YAW_EN) has no effect.
+:::
 
 ## 정밀 착륙 수행
 
@@ -96,6 +110,20 @@ At time of writing is no _convenient_ way to directly invoke precision landing (
 - [MAV_CMD_DO_SET_MODE](https://mavlink.io/en/messages/common.html#MAV_CMD_DO_SET_MODE) should work, but you will need to determine the appropriate base and custom modes used by PX4 to represent the precision landing mode.
 
 :::
+
+<!-- AUTO-GENERATED: mode_requirements_rotary_wing_auto_precland -->
+
+### Mode Requirements
+
+The following requirements must be met to arm in this mode, or to switch to this mode when it is armed.
+
+- [`mode_req_angular_velocity`](../flight_modes/mode_requirements.md#mode_req_angular_velocity) — Angular velocity
+- [`mode_req_attitude`](../flight_modes/mode_requirements.md#mode_req_attitude) — Attitude/pose
+- [`mode_req_local_alt`](../flight_modes/mode_requirements.md#mode_req_local_alt) — Local altitude relative to EKF2 origin ('0') position
+- [`mode_req_local_position`](../flight_modes/mode_requirements.md#mode_req_local_position) — Position relative to EKF2 origin ('0') point
+- [`mode_req_prevent_arming`](../flight_modes/mode_requirements.md#mode_req_prevent_arming) — Mode prevents arming
+
+<!-- END AUTO-GENERATED: mode_requirements_rotary_wing_auto_precland -->
 
 ## 하드웨어 설정
 
@@ -150,15 +178,18 @@ If `LTEST_MODE` is set to stationary, the target measurements are also used by t
 Other relevant parameters are listed in the parameter reference under [Landing_target estimator](../advanced_config/parameter_reference.md#landing-target-estimator) and [Precision land](../advanced_config/parameter_reference.md#precision-land) parameters.
 가장 유용한 몇 가지가 아래에 나열되어 있습니다.
 
-| 매개변수                                                                                                                                            | 설명                                                                                                                                                                                       |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <a id="SENS_EN_IRLOCK"></a>[SENS_EN_IRLOCK](../advanced_config/parameter_reference.md#SENS_EN_IRLOCK) | IR-LOCK 센서(외부 I2C). Disable: `0` (default): Enable: `1`).          |
-| <a id="LTEST_MODE"></a>[LTEST_MODE](../advanced_config/parameter_reference.md#LTEST_MODE)                                  | Landing target is moving (`0`) or stationary (`1`). 기본값은 이동입니다.                                                    |
-| <a id="PLD_HACC_RAD"></a>[PLD_HACC_RAD](../advanced_config/parameter_reference.md#PLD_HACC_RAD)       | 차량이 하강을 시작할 수평 허용 반경입니다. 기본값은 0.2m입니다.                                                                                                   |
-| <a id="PLD_BTOUT"></a>[PLD_BTOUT](../advanced_config/parameter_reference.md#PLD_BTOUT)                                     | 착륙 목표 시간 초과 후 목표물이 손실된 것으로 간주됩니다. 기본값은 5초 입니다.                                                                                                           |
-| <a id="PLD_FAPPR_ALT"></a>[PLD_FAPPR_ALT](../advanced_config/parameter_reference.md#PLD_FAPPR_ALT)    | 최종 접근 고도. 기본값은 0.1 미터 입니다.                                                                                                               |
-| <a id="PLD_MAX_SRCH"></a>[PLD_MAX_SRCH](../advanced_config/parameter_reference.md#PLD_MAX_SRCH)       | 착륙시 최대 검색 시도 횟수입니다.                                                                                                                                                      |
-| <a id="RTL_PLD_MD"></a>[RTL_PLD_MD](../advanced_config/parameter_reference.md#RTL_PLD_MD)             | RTL 정밀 지상 모드. `0`: disabled, `1`: [Opportunistic](#opportunistic-mode), `2`: [Required](#required-mode). |
+| Parameter                                                                                                                                                                  | 설명                                                                                                                                                                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="SENS_EN_IRLOCK"></a>[SENS_EN_IRLOCK](../advanced_config/parameter_reference.md#SENS_EN_IRLOCK)                            | IR-LOCK 센서(외부 I2C). Disable: `0` (default): Enable: `1`).          |
+| <a id="LTEST_MODE"></a>[LTEST_MODE](../advanced_config/parameter_reference.md#LTEST_MODE)                                                             | Landing target is moving (`0`) or stationary (`1`). 기본값은 이동입니다.                                                    |
+| <a id="PLD_HACC_RAD"></a>[PLD_HACC_RAD](../advanced_config/parameter_reference.md#PLD_HACC_RAD)                                  | 차량이 하강을 시작할 수평 허용 반경입니다. 기본값은 0.2m입니다.                                                                                                   |
+| <a id="PLD_MOVING_T_MIN"></a>[PLD_MOVING_T_MIN](../advanced_config/parameter_reference.md#PLD_MOVING_T_MIN) | Minimum moving-target prediction time for the precision landing setpoint.                                                                                                |
+| <a id="PLD_MOVING_T_MAX"></a>[PLD_MOVING_T_MAX](../advanced_config/parameter_reference.md#PLD_MOVING_T_MAX) | Maximum moving-target prediction time for the precision landing setpoint.                                                                                                |
+| <a id="PLD_BTOUT"></a>[PLD_BTOUT](../advanced_config/parameter_reference.md#PLD_BTOUT)                                                                | 착륙 목표 시간 초과 후 목표물이 손실된 것으로 간주됩니다. 기본값은 5초 입니다.                                                                                                           |
+| <a id="PLD_FAPPR_ALT"></a>[PLD_FAPPR_ALT](../advanced_config/parameter_reference.md#PLD_FAPPR_ALT)                               | 최종 접근 고도. 기본값은 0.1 미터 입니다.                                                                                                               |
+| <a id="PLD_MAX_SRCH"></a>[PLD_MAX_SRCH](../advanced_config/parameter_reference.md#PLD_MAX_SRCH)                                  | Maximum number of search attempts in a required landing.                                                                                                                 |
+| <a id="PLD_YAW_EN"></a>[PLD_YAW_EN](../advanced_config/parameter_reference.md#PLD_YAW_EN)                                        | Enable yaw alignment during precision landing when target orientation is available.                                                                                      |
+| <a id="RTL_PLD_MD"></a>[RTL_PLD_MD](../advanced_config/parameter_reference.md#RTL_PLD_MD)                                        | RTL 정밀 지상 모드. `0`: disabled, `1`: [Opportunistic](#opportunistic-mode), `2`: [Required](#required-mode). |
 
 ### IR 비콘 스케일링
 

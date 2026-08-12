@@ -11,12 +11,12 @@ Manual modes provide different levels of autopilot support when flying manually 
 
 Manual-Easy:
 
-- [Position mode](../flight_modes_fw/position.md) — Easiest and safest manual mode for vehicles that have a position fix/GPS.
+- [Cruise mode](../flight_modes_fw/cruise.md) — Easiest and safest manual mode for vehicles that have a position fix/GPS.
   The vehicle performs a [coordinated turn](https://en.wikipedia.org/wiki/Coordinated_flight) if the roll stick is non-zero, while the pitch stick controls the rate of ascent/descent.
   If the sticks are released the vehicle levels out and holds a straight flight path, even against wind.
   Airspeed is actively controlled if an airspeed sensor is installed.
 - [Altitude](../flight_modes_fw/altitude.md) — Easiest and safest _non-GPS_ manual mode.
-  The only difference compared to _Position mode_ is that the pilot always directly controls the roll angle of the plane and there is no automatic course holding.
+  The only difference compared to _Cruise mode_ is that the pilot always directly controls the roll angle of the plane and there is no automatic course holding.
 - Altitude Cruise mode — It behaves exactly like _Altitude mode_, with the only difference being that the manual control failsafe can be disabled. This is done by setting the corresponding flag in [COM_RCL_EXCEPT](../advanced_config/parameter_reference.md#COM_RCL_EXCEPT). In that case the current altitude, airspeed and heading (by leveling out the roll angle) are kept until the manual control link is regained or the mode is exited.
   It is highly recommended to only disable the manual control loss failsafe for this mode if there is a stable data link connection to the vehicle at all times, or to enable the data link loss failsafe through [NAV_DLL_ACT](../advanced_config/parameter_reference.md#NAV_DLL_ACT).
 - [Stabilized mode](../flight_modes_fw/stabilized.md) — The pilot directly commands the roll and pitch angle and the vehicle keeps the setpoint until the sticks are moved again.
@@ -39,12 +39,15 @@ Airspeed is actively controlled if an airspeed sensor is installed in any autono
 - [Hold](../flight_modes_fw/hold.md) — Vehicle circles around the GPS hold position at the current altitude.
   The mode can be used to pause a mission or to help regain control of a vehicle in an emergency.
   It can be activated with a pre-programmed RC switch or the QGroundControl Pause button.
+- [Guided Course](../flight_modes_fw/guided_course.md) — Vehicle maintains a constant ground track, altitude, and airspeed.
+  The operator commands course, altitude, and airspeed changes in real time from the GCS. Manual stick input is ignored.
 - [Return](../flight_modes_fw/return.md) — Vehicle flies a clear path to land at a safe location.
   By default the destination is a mission landing pattern.
   The mode may be activated manually (via a pre-programmed RC switch) or automatically (i.e. in the event of a failsafe being triggered).
 - [Mission](../flight_modes_fw/mission.md) — Vehicle executes a [predefined mission/flight plan](../flying/missions.md) that has been uploaded to the flight controller.
 - [Takeoff](../flight_modes_fw/takeoff.md) — Vehicle initiates the takeoff sequence using either _catapult/hand-launch mode_ or _runway takeoff mode_ (in the current direction).
 - [Land](../flight_modes_fw/land.md) — Vehicle initiates the [fixed-wing landing sequence](../flight_modes_fw/mission.md#mission-landing).
+- [Descend](../flight_modes_fw/descend.md) — Failsafe fallback: the vehicle circles down at a fixed bank angle without position control (used when the position estimate is lost). Not pilot-selectable.
 - [Offboard](../flight_modes_fw/offboard.md) — Vehicle obeys attitude setpoints provided via MAVLink or ROS 2.
 
 Pilots transition between flight modes using switches on the remote control or with a ground control station (see [Flight Mode Configuration](../config/flight_mode.md)).
